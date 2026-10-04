@@ -7,30 +7,47 @@
 // A sync: download the file, keep the newer copy of each record (by updated_at) on both
 // sides, then upload the merged file if this device had anything newer. If another device
 // pushed in between, GitHub rejects the stale write and we simply merge again.
+// Images go after the text, so text changes never wait behind a big batch of images.
+//
+// GitHub limits how fast files can be created (documented: 80 per minute, 500 per hour).
+// Image uploads are paced under that, keeping some room free so text syncs always get
+// through. If GitHub still says "slow down", we wait exactly as long as it asks.
 import { Covers, Meta, changes, coverIdOf, isCoverRef, mimeOfCover, putSynced, snapshot } from './db.js';
 import { base64ToBytes, bytesToBase64 } from './util.js';
 
 const CONFIG_KEY = 'sync.config'; // { repo: "owner/name", token }
 const LAST_KEY = 'sync.last'; // ISO time of last successful sync
 const COVERS_KEY = 'sync.covers'; // cover file names known to exist in the repo
+const UPLOAD_LOG_KEY = 'sync.uploads'; // times of recent image uploads (for pacing)
 const DATA_FILE = 'medialog.json';
 const PUSH_DELAY_MS = 4000;
 const PULL_INTERVAL_MS = 5 * 60 * 1000;
 const DOWNLOAD_PARALLEL = 4;
-const STORES = ['media_sources', 'media_entries'];
+const STORES = ['media_sources', 'media_entries', 'gallery_images'];
+
+const HOUR = 60 * 60 * 1000;
+const UPLOAD_GAP_MS = 1000; // ≤ 60 images per minute (GitHub allows 80)
+const UPLOADS_PER_HOUR = 420; // GitHub allows 500; the rest stays free for text syncs
+const BACKOFF_START_MS = 60 * 1000; // when GitHub says "slow down" without saying how long
+const BACKOFF_MAX_MS = 30 * 60 * 1000;
 
 export const status = new EventTarget(); // "change" when getStatus() changes, "remote" after pulling changes
 
 let config = null;
-let state = 'off'; // off | idle | syncing | error
+let state = 'off'; // off | idle | syncing | waiting (paused for GitHub's limits) | error
 let last = null;
 let error = null;
 let timer = null;
 let running = null;
 let again = false;
 let uploadedCovers = new Set();
+let uploadLog = []; // timestamps of image uploads in the last hour
+let pendingUploads = 0; // images on this device not yet in the repo
+let resumeAt = null; // when the next sync may run, while waiting
+let holdUntil = 0; // GitHub asked us to pause everything until then
+let backoff = BACKOFF_START_MS;
 
-export const getStatus = () => ({ state, repo: config?.repo ?? null, last, error });
+export const getStatus = () => ({ state, repo: config?.repo ?? null, last, error, pendingUploads, resumeAt });
 
 function setState(next, err = null) {
   state = next;
@@ -42,6 +59,29 @@ function setState(next, err = null) {
 // ---------------------------------------------------------------- GitHub API
 
 class SyncError extends Error {}
+
+// GitHub said "slow down": retry no earlier than `retryAt`.
+class RateLimitError extends SyncError {
+  constructor(retryAt) {
+    super('GitHub asked to slow down.');
+    this.retryAt = retryAt;
+  }
+}
+
+async function rateLimitFrom(res) {
+  const retryAfter = Number(res.headers.get('retry-after'));
+  if (retryAfter > 0) return new RateLimitError(Date.now() + retryAfter * 1000);
+  const reset = Number(res.headers.get('x-ratelimit-reset'));
+  if (res.headers.get('x-ratelimit-remaining') === '0' && reset) return new RateLimitError(reset * 1000 + 1000);
+  const { message = '' } = await res.clone().json().catch(() => ({}));
+  if (res.status === 429 || /rate limit/i.test(message)) {
+    // No wait time given: GitHub's docs say wait at least a minute, then back off further.
+    const retryAt = Date.now() + backoff;
+    backoff = Math.min(backoff * 2, BACKOFF_MAX_MS);
+    return new RateLimitError(retryAt);
+  }
+  return null;
+}
 
 async function api(path, { method = 'GET', body, accept = 'application/vnd.github+json', token = config?.token } = {}) {
   let res;
@@ -61,8 +101,8 @@ async function api(path, { method = 'GET', body, accept = 'application/vnd.githu
   }
   if (res.status === 401) throw new SyncError('GitHub rejected the token (expired or revoked?). Reconnect in Settings → Sync.');
   if (res.status === 403 || res.status === 429) {
-    const remaining = res.headers.get('x-ratelimit-remaining');
-    if (remaining === '0' || res.status === 429) throw new SyncError('GitHub rate limit reached. Sync will continue later.');
+    const limited = await rateLimitFrom(res);
+    if (limited) throw limited;
     throw new SyncError('The token is not allowed to do this. It needs "Contents: Read and write" access to the repository.');
   }
   return res;
@@ -111,24 +151,45 @@ async function writeDataFile(data, sha) {
 const coverIdsIn = (entries) =>
   [...new Set(entries.filter((e) => !e.deleted_at && isCoverRef(e.cover_image)).map((e) => coverIdOf(e.cover_image)))];
 
-// Uploads this device's images that the repo doesn't have yet. Runs before the data file is
-// pushed, so other devices never see a reference to an image that isn't there.
-async function uploadCovers(entries) {
-  for (const id of coverIdsIn(entries)) {
-    if (uploadedCovers.has(id)) continue;
+// How long until another image upload fits in the hourly budget (0 = now).
+function uploadBudgetWait() {
+  const now = Date.now();
+  uploadLog = uploadLog.filter((t) => now - t < HOUR);
+  return uploadLog.length < UPLOADS_PER_HOUR ? 0 : uploadLog[0] + HOUR - now + 1000;
+}
+
+// Uploads this device's images that the repo doesn't have yet, as many as the budget allows.
+// Other devices show a placeholder for an image that isn't there yet and fetch it later.
+// Returns how long to wait before continuing (0 = all done).
+async function uploadCovers() {
+  const { media_entries } = await snapshot();
+  const queue = [];
+  for (const id of coverIdsIn(media_entries)) {
+    if (!uploadedCovers.has(id) && (await Covers.has(id))) queue.push(id); // others' images: they upload them
+  }
+  pendingUploads = queue.length;
+  status.dispatchEvent(new Event('change'));
+
+  for (const id of queue) {
+    const wait = uploadBudgetWait();
+    if (wait) return wait;
     const record = await Covers.get(id);
-    if (!record) continue; // added on another device, which uploads it
+    if (!record) continue; // deleted meanwhile
     const res = await api(contentsPath(config.repo, `covers/${id}`), {
       method: 'PUT',
       body: { message: 'Add cover image', content: bytesToBase64(new Uint8Array(await record.blob.arrayBuffer())) },
     });
     // 422 = file already exists (the same image was uploaded from another device).
-    if (!res.ok && res.status !== 422) throw new SyncError(`GitHub error ${res.status} while uploading a cover.`);
+    if (!res.ok && res.status !== 422) throw new SyncError(`GitHub error ${res.status} while uploading an image.`);
     uploadedCovers.add(id);
+    uploadLog.push(Date.now());
+    pendingUploads--;
     await Meta.set(COVERS_KEY, [...uploadedCovers]);
-    // Uploads create commits; stay well under GitHub's limit on how fast content can be created.
-    await new Promise((r) => setTimeout(r, 800));
+    await Meta.set(UPLOAD_LOG_KEY, uploadLog);
+    status.dispatchEvent(new Event('change'));
+    if (pendingUploads) await new Promise((r) => setTimeout(r, UPLOAD_GAP_MS));
   }
+  return 0;
 }
 
 // Downloads images used by entries that this device doesn't have yet, a few at a time.
@@ -142,7 +203,7 @@ async function downloadCovers() {
     while (missing.length) {
       const id = missing.shift();
       const res = await api(contentsPath(config.repo, `covers/${id}`), { accept: 'application/vnd.github.raw+json' });
-      if (!res.ok) continue; // not uploaded yet; retried next sync
+      if (!res.ok) continue; // not uploaded yet by the other device; retried next sync
       await Covers.put(id, new Blob([await res.arrayBuffer()], { type: mimeOfCover(id) }));
       uploadedCovers.add(id);
       downloaded++;
@@ -158,11 +219,12 @@ async function downloadCovers() {
 const isRecord = (r) => r && typeof r.id === 'string' && typeof r.updated_at === 'string';
 const newer = (a, b) => a.updated_at > b.updated_at;
 
-async function syncOnce() {
+// Text: pull, merge, push. Returns how many records came from other devices.
+async function syncRecords() {
   for (let attempt = 0; attempt < 4; attempt++) {
     const remote = await readDataFile();
     const local = await snapshot();
-    const pulled = { media_sources: [], media_entries: [] };
+    const pulled = Object.fromEntries(STORES.map((s) => [s, []]));
     let needPush = !remote.data;
 
     for (const store of STORES) {
@@ -179,26 +241,35 @@ async function syncOnce() {
       }
     }
 
-    const pulledCount = pulled.media_sources.length + pulled.media_entries.length;
+    const pulledCount = STORES.reduce((n, s) => n + pulled[s].length, 0);
     if (pulledCount) await putSynced(pulled);
 
     if (needPush) {
       const merged = await snapshot();
-      await uploadCovers(merged.media_entries);
       const file = { app: 'medialog', kind: 'sync', version: 3, synced_at: new Date().toISOString(), ...merged };
       if (!(await writeDataFile(file, remote.sha))) continue; // someone else pushed first: merge again
     }
-
-    const downloaded = await downloadCovers();
-    return { pulled: pulledCount + downloaded };
+    return pulledCount;
   }
   throw new SyncError('Another device kept syncing at the same time. Try again in a moment.');
 }
 
 // ---------------------------------------------------------------- scheduling
 
+const notifyRemote = (count) => count && status.dispatchEvent(new CustomEvent('remote', { detail: { count } }));
+
+function wait(ms, err = null) {
+  resumeAt = Date.now() + ms;
+  setState('waiting', err);
+  schedule(ms);
+}
+
 export function syncNow() {
   if (!config) return Promise.resolve(false);
+  if (Date.now() < holdUntil) {
+    schedule(holdUntil - Date.now()); // GitHub asked us to pause; the scheduled sync picks this up
+    return Promise.resolve(false);
+  }
   clearTimeout(timer);
   timer = null;
   if (running) {
@@ -206,15 +277,25 @@ export function syncNow() {
     return running;
   }
   running = (async () => {
-    setState('syncing', null);
+    resumeAt = null;
+    setState('syncing');
     try {
-      const { pulled } = await syncOnce();
+      notifyRemote(await syncRecords()); // text first: never waits for images
       last = new Date().toISOString();
       await Meta.set(LAST_KEY, last);
-      setState('idle');
-      if (pulled) status.dispatchEvent(new CustomEvent('remote', { detail: { count: pulled } }));
+
+      const uploadWait = await uploadCovers();
+      notifyRemote(await downloadCovers());
+      backoff = BACKOFF_START_MS;
+      if (uploadWait) wait(uploadWait); // more images to upload once the hourly budget frees up
+      else setState('idle');
       return true;
     } catch (err) {
+      if (err instanceof RateLimitError) {
+        holdUntil = err.retryAt;
+        wait(err.retryAt - Date.now());
+        return false;
+      }
       console.error('Sync failed', err);
       setState('error', err instanceof SyncError ? err.message : `Sync failed: ${err.message}`);
       return false;
@@ -232,20 +313,21 @@ export function syncNow() {
 function schedule(delay = PUSH_DELAY_MS) {
   if (!config) return;
   clearTimeout(timer);
-  timer = setTimeout(syncNow, delay);
+  timer = setTimeout(syncNow, Math.max(delay, Date.now() < holdUntil ? holdUntil - Date.now() : 0));
 }
 
 export async function initSync() {
   config = (await Meta.get(CONFIG_KEY)) ?? null;
   last = (await Meta.get(LAST_KEY)) ?? null;
   uploadedCovers = new Set((await Meta.get(COVERS_KEY)) ?? []);
+  uploadLog = (await Meta.get(UPLOAD_LOG_KEY)) ?? [];
 
   changes.addEventListener('change', (event) => {
     if (event.detail?.origin !== 'sync') schedule();
   });
   document.addEventListener('visibilitychange', () => {
     if (!config) return;
-    if (document.visibilityState === 'hidden' && timer) syncNow(); // push pending edits before the app is closed
+    if (document.visibilityState === 'hidden' && timer) syncNow(); // push pending edits before closing
     if (document.visibilityState === 'visible' && Date.now() - Date.parse(last ?? 0) > 30_000) syncNow();
   });
   window.addEventListener('online', () => config && syncNow());
@@ -281,6 +363,8 @@ export async function disconnect() {
   clearTimeout(timer);
   config = null;
   last = null;
+  resumeAt = null;
+  pendingUploads = 0;
   await Meta.remove(CONFIG_KEY);
   await Meta.remove(LAST_KEY);
   await Meta.remove(COVERS_KEY);

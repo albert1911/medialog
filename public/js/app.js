@@ -1,6 +1,7 @@
 import { initPWA, promptInstall } from './pwa.js';
 import { initAutoBackup, resume as resumeBackup } from './autobackup.js';
 import { initSync, status as syncStatus } from './sync.js';
+import { initGallery } from './gallery.js';
 import { esc, toast } from './util.js';
 import { applyCoverShape, renderNotFound, shapeCovers, watchCovers } from './components.js';
 import { Covers } from './db.js';
@@ -84,6 +85,7 @@ setTimeout(() => Covers.prune().catch((err) => console.warn('Cover cleanup faile
 initPWA();
 initAutoBackup().catch((err) => console.error('Auto-backup init failed', err));
 initSync().catch((err) => console.error('Sync init failed', err));
+initGallery().catch((err) => console.error('Gallery init failed', err));
 
 // Changes pulled from another device: refresh the page, unless it's a form being filled in.
 syncStatus.addEventListener('remote', () => {

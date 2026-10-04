@@ -1,4 +1,5 @@
 import { Covers, Entries, Sources, ValidationError, isCoverRef } from '../db.js';
+import { mountGallery } from './gallery.js';
 import {
   STATUSES, byText, debounce, esc, fmtDate, fmtDateTime,
   imageToBlob, probeAspect, safeHref, safeImg, statusLabel, toast,
@@ -79,6 +80,8 @@ export async function renderEntryDetail(view, id) {
           <button type="button" class="btn btn-danger-ghost" id="delete">Delete</button>
         </div>
 
+        <section class="gallery" id="gallery"></section>
+
         ${entry.content ? '<h2 class="section-title">Content</h2><iframe class="content-frame panel" id="content-frame" title="Entry content"></iframe>' : ''}
 
         <p class="muted small timestamps">Added ${fmtDateTime(entry.created_at)} · Updated <span id="updated-at">${fmtDateTime(entry.updated_at)}</span></p>
@@ -121,13 +124,14 @@ export async function renderEntryDetail(view, id) {
   );
 
   $('#delete').addEventListener('click', async () => {
-    if (!confirm(`Delete “${entry.title}”? This can't be undone.`)) return;
+    if (!confirm(`Delete “${entry.title}” and its gallery? This can't be undone.`)) return;
     await Entries.remove(entry.id);
     toast('Entry deleted');
     location.hash = '#/';
   });
 
   if (entry.content) mountContent($('#content-frame'), entry.content);
+  await mountGallery($('#gallery'), entry.id);
   fill();
 }
 

@@ -90,21 +90,35 @@ export function downloadFile(filename, text, type = 'application/json') {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-// Downscale uploads so covers stay small. Landscape images get more pixels because
-// they're shown as a wide banner. Returns { blob, aspect } (aspect = w / h).
-export async function imageToBlob(file) {
+const canvasToJpeg = (canvas, quality = 0.85) =>
+  new Promise((resolve, reject) =>
+    canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('Could not encode image'))), 'image/jpeg', quality));
+
+// Downscale images before storing them. Covers (default): landscape images get more pixels
+// because they're shown as a wide banner. Returns { blob, aspect, width, height }.
+export async function imageToBlob(file, maxSide = null) {
   const bitmap = await createImageBitmap(file);
   const aspect = bitmap.width / bitmap.height;
-  const maxSide = aspect >= 1.3 ? 1280 : 600;
-  const scale = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height));
+  const limit = maxSide ?? (aspect >= 1.3 ? 1280 : 600);
+  const scale = Math.min(1, limit / Math.max(bitmap.width, bitmap.height));
   const canvas = document.createElement('canvas');
   canvas.width = Math.round(bitmap.width * scale);
   canvas.height = Math.round(bitmap.height * scale);
   canvas.getContext('2d').drawImage(bitmap, 0, 0, canvas.width, canvas.height);
   bitmap.close?.();
-  const blob = await new Promise((resolve, reject) =>
-    canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('Could not encode image'))), 'image/jpeg', 0.85));
-  return { blob, aspect };
+  return { blob: await canvasToJpeg(canvas), aspect, width: canvas.width, height: canvas.height };
+}
+
+// Square, center-cropped thumbnail (same framing as the Cloudinary thumbnail).
+export async function squareThumb(blob, size = 320) {
+  const bitmap = await createImageBitmap(blob);
+  const side = Math.min(bitmap.width, bitmap.height);
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = Math.min(size, side);
+  canvas.getContext('2d').drawImage(
+    bitmap, (bitmap.width - side) / 2, (bitmap.height - side) / 2, side, side, 0, 0, canvas.width, canvas.height);
+  bitmap.close?.();
+  return canvasToJpeg(canvas, 0.8);
 }
 
 export function bytesToBase64(bytes) {

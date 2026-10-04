@@ -66,6 +66,7 @@ public/
   css/app.css
   js/db.js              IndexedDB layer: validation, CRUD, import/export
   js/sync.js            sync through a private GitHub repo
+  js/gallery.js         gallery images on Cloudinary (upload queue, caching, self-healing)
   js/autobackup.js      auto-backup to a local file
   js/app.js             hash router
   js/views/*.js         library, entry, sources, settings screens
@@ -94,6 +95,30 @@ Medialog can keep your laptop and phone in sync through a file in a **private** 
 - The token is stored only in that device's browser. If a device is lost, delete the token on GitHub; your other devices keep working after you give them a new one.
 - A **⚠ Sync** button appears in the header when something needs attention, such as an expired token.
 - If you already copied data between devices with Export/Import before turning on sync, the copies are different records and would show up twice. Keep the data on one device, and on the other use **Delete all data** *before* connecting it.
+
+## Gallery images (Cloudinary)
+
+Each entry can have a gallery. Gallery images are stored on [Cloudinary](https://cloudinary.com)'s free plan, so the sync repo stays small and isn't slowed by GitHub's upload limits. Entries, covers and gallery *records* still sync through GitHub as before.
+
+### One-time setup
+
+1. **Create a free Cloudinary account.** Don't add a credit card. That way, going over the free allowance can only pause images, never cost money.
+2. **Copy your cloud name** from the Cloudinary dashboard.
+3. **Create an upload preset:** *Settings (gear) → Product environment settings → Upload → Add upload preset*.
+   - **Signing mode:** *Unsigned*. This lets the app upload directly, without a secret key.
+   - **Folder:** `medialog` (optional, keeps things tidy).
+   - Save, and copy the preset's **name**.
+4. **Recommended: turn on strict transformations** (*Settings → Product environment settings → Security*), then allow the one image size the app requests: `c_fill,g_center,w_320,h_320,q_80,f_jpg` (the gallery thumbnail). This stops anyone with an image link from generating endless image sizes on your account. If the thumbnail isn't allowed, the app still works: it makes thumbnails itself from the full image, using a bit more traffic.
+5. **In Medialog:** *Settings → Gallery*, enter the cloud name and preset name, then **Save**. Do this on each device you want to *add* images from. Viewing works on every synced device without it.
+
+### How it behaves
+- **Adding images:** open an entry → **＋ Add images** (you can pick several). Images are resized to at most 2048px and saved on the device immediately, then uploaded. Offline, they wait and upload automatically when you're back online.
+- **Other devices** download a small thumbnail when you open the gallery and the full image when you tap it. Both are then kept on the device, so viewing again uses no traffic and works offline.
+- **Viewer:** tap an image to open it full screen; use the arrows, arrow keys or swipe to move between images.
+- **Deleting** an image removes it from the gallery on every device. Cloudinary only lets a browser delete within 10 minutes of uploading; after that, the file stays in your Cloudinary *Media Library* (folder `medialog`) until you delete it there.
+- **Leaked link?** Delete that image in Cloudinary's Media Library. The next device that can't find it flags it, and a device that still has the file re-uploads it under a new link. Your gallery heals itself and the old link stays dead.
+- **Privacy:** gallery images are public to anyone who has an image's exact link (links are long and random). Keep anything personal out of the gallery. Your cloud name and preset are stored only in each device's browser, not in the app's public code or the sync repo.
+- **Backups:** Export JSON includes the gallery's links, not the images themselves (those live on Cloudinary).
 
 ## Backups
 Every change is saved to IndexedDB immediately. Backups protect you if the browser's data gets wiped.

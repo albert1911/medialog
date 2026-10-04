@@ -3,11 +3,57 @@ import { downloadFile, esc, fmtDateTime, formatBytes, todayISO, toast } from '..
 import { canInstall, isStandalone, promptInstall } from '../pwa.js';
 import * as AutoBackup from '../autobackup.js';
 import * as Sync from '../sync.js';
+import * as G from '../gallery.js';
 
 const SYNC_GUIDE = 'https://github.com/albert1911/medialog#sync-between-devices';
+const GALLERY_GUIDE = 'https://github.com/albert1911/medialog#gallery-images-cloudinary';
+
+function drawGallery(box) {
+  const config = G.getConfig();
+  const { pending, error } = G.getProgress();
+
+  if (!config) {
+    box.innerHTML = `<p>Gallery images are stored on <strong>Cloudinary</strong> (free plan). Viewing works on every device;
+        to <em>add</em> images from this device, connect your Cloudinary account here.
+        <a href="${GALLERY_GUIDE}" target="_blank" rel="noopener noreferrer">Setup guide ↗</a></p>
+      <form id="gallery-form" class="sync-form" novalidate>
+        <label class="field"><span>Cloud name</span>
+          <input name="cloud" autocomplete="off" autocapitalize="off" spellcheck="false">
+        </label>
+        <label class="field"><span>Upload preset (unsigned)</span>
+          <input name="preset" autocomplete="off" autocapitalize="off" spellcheck="false">
+        </label>
+        <button type="submit" class="btn btn-primary">Save</button>
+      </form>`;
+    box.querySelector('#gallery-form').addEventListener('submit', async (event) => {
+      event.preventDefault();
+      try {
+        await G.setConfig(event.target.elements.cloud.value, event.target.elements.preset.value);
+        toast('Gallery hosting connected', 'success');
+      } catch (err) {
+        toast(err.message, 'error', 6000);
+      }
+    });
+    return;
+  }
+
+  box.innerHTML = `<p class="ok">✓ Uploading to Cloudinary cloud <strong>${esc(config.cloud)}</strong> with preset <strong>${esc(config.preset)}</strong></p>
+    ${error
+      ? `<p class="error-text"><strong>Upload problem:</strong> ${esc(error)}${pending ? ` (${pending} waiting)` : ''}</p>`
+      : pending ? `<p>Uploading ${pending} image${pending === 1 ? '' : 's'}…</p>` : ''}
+    <div class="row">
+      ${error ? '<button type="button" class="btn" data-g="retry">Retry uploads</button>' : ''}
+      <button type="button" class="btn btn-danger-ghost" data-g="off">Disconnect</button>
+    </div>`;
+  box.querySelector('[data-g=retry]')?.addEventListener('click', () => G.uploadPending());
+  box.querySelector('[data-g=off]').addEventListener('click', async () => {
+    if (!confirm('Disconnect Cloudinary on this device? Existing gallery images keep working.')) return;
+    await G.clearConfig();
+  });
+}
 
 function drawSync(box) {
-  const { state, repo, last, error } = Sync.getStatus();
+  const { state, repo, last, error, pendingUploads, resumeAt } = Sync.getStatus();
 
   if (state === 'off') {
     box.innerHTML = `<p>Keep your library in sync across devices through a <strong>private</strong> GitHub repository.
@@ -39,9 +85,18 @@ function drawSync(box) {
     return;
   }
 
+  const images = (n) => `${n} image${n === 1 ? '' : 's'}`;
+  const at = resumeAt ? new Date(resumeAt).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) : '';
   const lines = {
     idle: `<p class="ok">✓ Syncing with <strong>${esc(repo)}</strong></p>`,
-    syncing: `<p>Syncing with <strong>${esc(repo)}</strong>…</p>`,
+    syncing: pendingUploads
+      ? `<p>Uploading images to <strong>${esc(repo)}</strong>… ${images(pendingUploads)} left.</p>`
+      : `<p>Syncing with <strong>${esc(repo)}</strong>…</p>`,
+    waiting: pendingUploads
+      ? `<p class="ok">✓ Entries are synced.</p>
+         <p><strong>${images(pendingUploads)} left to upload.</strong> GitHub limits how fast images can be added,
+           so this continues automatically around ${at}. Keep the app open or open it again later.</p>`
+      : `<p>GitHub asked to pause syncing for a moment. Continuing automatically around ${at}.</p>`,
     error: `<p class="error-text"><strong>Sync problem:</strong> ${esc(error)}</p>`,
   };
   box.innerHTML = `${lines[state]}
@@ -53,6 +108,7 @@ function drawSync(box) {
     </div>`;
   box.querySelector('[data-sync="now"]').addEventListener('click', async () => {
     if (await Sync.syncNow()) toast('Synced', 'success');
+    else if (Sync.getStatus().state === 'waiting') toast('Waiting for GitHub. It continues automatically.');
   });
   box.querySelector('[data-sync="off"]').addEventListener('click', async () => {
     if (!confirm('Stop syncing this device? Your data stays on this device and in the repository.')) return;
@@ -142,6 +198,11 @@ export async function renderSettings(view) {
       </section>
 
       <section class="panel">
+        <h2>Gallery</h2>
+        <div id="gallery-settings"></div>
+      </section>
+
+      <section class="panel">
         <h2>Auto-backup</h2>
         <div id="auto-backup"></div>
       </section>
@@ -182,6 +243,11 @@ export async function renderSettings(view) {
   drawSync(syncBox);
   const onSync = () => (syncBox.isConnected ? drawSync(syncBox) : Sync.status.removeEventListener('change', onSync));
   Sync.status.addEventListener('change', onSync);
+
+  const galleryBox = $('#gallery-settings');
+  drawGallery(galleryBox);
+  const onGallery = () => (galleryBox.isConnected ? drawGallery(galleryBox) : G.status.removeEventListener('change', onGallery));
+  G.status.addEventListener('change', onGallery);
 
   $('#install')?.addEventListener('click', async () => {
     await promptInstall();

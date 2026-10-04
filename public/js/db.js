@@ -15,14 +15,20 @@
 // - deleting keeps a tombstone { id, created_at, updated_at, deleted_at } so the deletion
 //   reaches other devices; tombstones are hidden from every normal query;
 // - updated_at decides which copy wins when two devices changed the same record.
+//
+// Gallery: gallery_images holds one small synced record per image (the image itself is on
+// Cloudinary); gallery_cache keeps downloaded/uploaded image files on this device only.
 import { STATUS_VALUES, base64ToBytes, bytesToBase64, isISODate, todayISO } from './util.js';
 
 const DB_NAME = 'medialog';
-const DB_VERSION = 4;
+const DB_VERSION = 5;
 export const SOURCES = 'media_sources';
 export const ENTRIES = 'media_entries';
+export const GALLERY = 'gallery_images'; // { id, entry_id, cloud, public_id, version, format, width, height, pending, timestamps }
 const COVERS = 'covers'; // uploaded cover images: { id: "<sha256>.<ext>", blob, created_at }
+const GALLERY_CACHE = 'gallery_cache'; // { key: "<image id>:thumb|full", image_id, blob } — this device only
 const META = 'meta'; // device settings: backup file handle, sync config…
+const SYNCED = [SOURCES, ENTRIES, GALLERY];
 
 export const COVER_PREFIX = 'cover:';
 const COVER_ID = /^[0-9a-f]{64}\.[a-z0-9]+$/;
@@ -58,6 +64,12 @@ function createDataStores(db) {
     entries.createIndex('media_source_id', 'media_source_id');
   }
   if (!db.objectStoreNames.contains(COVERS)) db.createObjectStore(COVERS, { keyPath: 'id' });
+  if (!db.objectStoreNames.contains(GALLERY)) {
+    db.createObjectStore(GALLERY, { keyPath: 'id' }).createIndex('entry_id', 'entry_id');
+  }
+  if (!db.objectStoreNames.contains(GALLERY_CACHE)) {
+    db.createObjectStore(GALLERY_CACHE, { keyPath: 'key' }).createIndex('image_id', 'image_id');
+  }
 }
 
 // v1/v2 used auto-increment numbers; move every record to a UUID and remap source links.
@@ -126,7 +138,7 @@ async function withTx(stores, mode, fn, origin = 'local') {
     throw err;
   }
   await done;
-  if (mode === 'readwrite' && stores.some((s) => s === SOURCES || s === ENTRIES)) {
+  if (mode === 'readwrite' && stores.some((s) => SYNCED.includes(s))) {
     changes.dispatchEvent(new CustomEvent('change', { detail: { origin } }));
   }
   return result;
@@ -381,11 +393,119 @@ export const Entries = {
     return this.save({ ...current, ...patch }, id);
   },
 
+  // Deleting an entry also deletes its gallery images.
   remove(id) {
-    return withTx([ENTRIES], 'readwrite', async (tx) => {
+    return withTx([ENTRIES, GALLERY], 'readwrite', async (tx) => {
       const store = tx.objectStore(ENTRIES);
       const entry = await wrap(store.get(String(id)));
-      if (live(entry)) store.put(tombstone(entry, new Date().toISOString()));
+      if (!live(entry)) return;
+      const now = new Date().toISOString();
+      store.put(tombstone(entry, now));
+      const gallery = tx.objectStore(GALLERY);
+      for (const image of await wrap(gallery.index('entry_id').getAll(String(id)))) {
+        if (live(image)) gallery.put(tombstone(image, now));
+      }
+    });
+  },
+};
+
+// ---------------------------------------------------------------- gallery
+
+const intOrNull = (v) => (Number.isInteger(v) && v > 0 ? v : null);
+
+function normalizeGalleryImage(data) {
+  if (typeof data.entry_id !== 'string' || !data.entry_id) throw new Error('Gallery image without an entry.');
+  return {
+    entry_id: data.entry_id,
+    cloud: typeof data.cloud === 'string' && /^[\w-]+$/.test(data.cloud) ? data.cloud : null,
+    public_id: typeof data.public_id === 'string' && /^[\w\-/.]+$/.test(data.public_id) ? data.public_id : null,
+    version: intOrNull(data.version),
+    format: typeof data.format === 'string' && /^[a-z0-9]+$/.test(data.format) ? data.format : null,
+    width: intOrNull(data.width),
+    height: intOrNull(data.height),
+    pending: Boolean(data.pending), // added on a device but not uploaded to Cloudinary yet
+    missing: Boolean(data.missing), // a device found it gone from Cloudinary; one with the file re-uploads it
+  };
+}
+
+const byCreated = (a, b) => a.created_at.localeCompare(b.created_at);
+
+export const Gallery = {
+  byEntry(entryId) {
+    return withTx([GALLERY], 'readonly', (tx) =>
+      wrap(tx.objectStore(GALLERY).index('entry_id').getAll(String(entryId))).then((rows) => rows.filter(live).sort(byCreated)),
+    );
+  },
+
+  all() {
+    return withTx([GALLERY], 'readonly', (tx) => getAllLive(tx, GALLERY));
+  },
+
+  async get(id) {
+    return live(await withTx([GALLERY], 'readonly', (tx) => wrap(tx.objectStore(GALLERY).get(String(id)))));
+  },
+
+  async add(fields) {
+    const now = new Date().toISOString();
+    const record = { id: newId(), ...normalizeGalleryImage(fields), created_at: now, updated_at: now };
+    await withTx([GALLERY], 'readwrite', (tx) => wrap(tx.objectStore(GALLERY).put(record)));
+    return record;
+  },
+
+  async update(id, patch) {
+    return withTx([GALLERY], 'readwrite', async (tx) => {
+      const store = tx.objectStore(GALLERY);
+      const current = live(await wrap(store.get(String(id))));
+      if (!current) return null;
+      const record = { ...current, ...normalizeGalleryImage({ ...current, ...patch }), updated_at: new Date().toISOString() };
+      await wrap(store.put(record));
+      return record;
+    });
+  },
+
+  remove(id) {
+    return withTx([GALLERY, GALLERY_CACHE], 'readwrite', async (tx) => {
+      const store = tx.objectStore(GALLERY);
+      const image = await wrap(store.get(String(id)));
+      if (live(image)) store.put(tombstone(image, new Date().toISOString()));
+      const cache = tx.objectStore(GALLERY_CACHE);
+      for (const key of await wrap(cache.index('image_id').getAllKeys(String(id)))) cache.delete(key);
+    });
+  },
+
+  // Live image count per entry id.
+  async counts() {
+    const map = new Map();
+    for (const image of await this.all()) map.set(image.entry_id, (map.get(image.entry_id) ?? 0) + 1);
+    return map;
+  },
+};
+
+// Image files on this device: "thumb" and "full" per gallery image.
+export const GalleryCache = {
+  async get(imageId, size) {
+    const row = await withTx([GALLERY_CACHE], 'readonly', (tx) => wrap(tx.objectStore(GALLERY_CACHE).get(`${imageId}:${size}`)));
+    return row?.blob ?? null;
+  },
+
+  put(imageId, size, blob) {
+    return withTx([GALLERY_CACHE], 'readwrite', (tx) =>
+      wrap(tx.objectStore(GALLERY_CACHE).put({ key: `${imageId}:${size}`, image_id: imageId, blob })));
+  },
+
+  // Drops cached files of images that were deleted (here or on another device).
+  prune() {
+    return withTx([GALLERY, GALLERY_CACHE], 'readwrite', async (tx) => {
+      const alive = new Set((await getAllLive(tx, GALLERY)).map((g) => g.id));
+      const cache = tx.objectStore(GALLERY_CACHE);
+      let removed = 0;
+      for (const key of await wrap(cache.getAllKeys())) {
+        if (!alive.has(key.split(':')[0])) {
+          cache.delete(key);
+          removed++;
+        }
+      }
+      return removed;
     });
   },
 };
@@ -402,15 +522,17 @@ export function counts() {
 // User-facing backup: live records only, plus the uploaded images they use (as base64,
 // so the backup is a single self-contained file).
 export async function exportData() {
-  const data = await withTx([SOURCES, ENTRIES, COVERS], 'readonly', async (tx) => {
+  const data = await withTx([SOURCES, ENTRIES, GALLERY, COVERS], 'readonly', async (tx) => {
     const entries = await getAllLive(tx, ENTRIES);
     const used = new Set(entries.filter((e) => isCoverRef(e.cover_image)).map((e) => coverIdOf(e.cover_image)));
     return {
       app: 'medialog',
-      version: 3,
+      version: 4,
       exported_at: new Date().toISOString(),
       media_sources: await getAllLive(tx, SOURCES),
       media_entries: entries,
+      // Links to gallery images on Cloudinary (the images themselves stay there).
+      gallery_images: (await getAllLive(tx, GALLERY)).filter((g) => !g.pending),
       covers: (await wrap(tx.objectStore(COVERS).getAll())).filter((c) => used.has(c.id)),
     };
   });
@@ -458,10 +580,13 @@ export async function importData(data, mode = 'merge') {
     const raw = entry.media_source_id;
     entry.media_source_id = raw == null ? null : idMap.get(raw) ?? idMap.get(Number(raw)) ?? (/^\d+$/.test(raw) ? null : raw);
   }
+  const entryIds = new Set(entries.map((e) => e.id));
+  const gallery = prepare(Array.isArray(data.gallery_images) ? data.gallery_images : [], normalizeGalleryImage, 'Gallery image')
+    .filter((g) => entryIds.has(g.entry_id) && g.public_id && !g.pending);
 
-  return withTx([SOURCES, ENTRIES, COVERS], 'readwrite', async (tx) => {
+  return withTx([SOURCES, ENTRIES, GALLERY, COVERS], 'readwrite', async (tx) => {
     for (const cover of covers) tx.objectStore(COVERS).put(cover);
-    for (const [storeName, rows] of [[SOURCES, sources], [ENTRIES, entries]]) {
+    for (const [storeName, rows] of [[SOURCES, sources], [ENTRIES, entries], [GALLERY, gallery]]) {
       const store = tx.objectStore(storeName);
       const existing = new Map((await wrap(store.getAll())).map((r) => [r.id, r]));
       const incoming = new Set(rows.map((r) => r.id));
@@ -488,10 +613,11 @@ export async function importData(data, mode = 'merge') {
 
 // Deletes everything (as tombstones, so the deletion also syncs).
 export function clearAll() {
-  return withTx([SOURCES, ENTRIES, COVERS], 'readwrite', async (tx) => {
+  return withTx([...SYNCED, COVERS, GALLERY_CACHE], 'readwrite', async (tx) => {
     tx.objectStore(COVERS).clear();
+    tx.objectStore(GALLERY_CACHE).clear();
     const now = new Date().toISOString();
-    for (const name of [SOURCES, ENTRIES]) {
+    for (const name of SYNCED) {
       const store = tx.objectStore(name);
       for (const record of await getAllLive(tx, name)) store.put(tombstone(record, now));
     }
@@ -500,19 +626,21 @@ export function clearAll() {
 
 // ---------------------------------------------------------------- sync helpers
 
-// Every record including tombstones.
+// Every synced record including tombstones, keyed by store name.
 export function snapshot() {
-  return withTx([SOURCES, ENTRIES], 'readonly', async (tx) => ({
-    media_sources: await wrap(tx.objectStore(SOURCES).getAll()),
-    media_entries: await wrap(tx.objectStore(ENTRIES).getAll()),
-  }));
+  return withTx(SYNCED, 'readonly', async (tx) => {
+    const result = {};
+    for (const name of SYNCED) result[name] = await wrap(tx.objectStore(name).getAll());
+    return result;
+  });
 }
 
 // Writes records received from another device, unless this device changed the record
 // again in the meantime (a local edit made while the sync was running wins).
-export function putSynced({ media_sources = [], media_entries = [] }) {
-  return withTx([SOURCES, ENTRIES], 'readwrite', async (tx) => {
-    for (const [name, rows] of [[SOURCES, media_sources], [ENTRIES, media_entries]]) {
+export function putSynced(data) {
+  return withTx(SYNCED, 'readwrite', async (tx) => {
+    for (const name of SYNCED) {
+      const rows = data[name] ?? [];
       const store = tx.objectStore(name);
       for (const row of rows) {
         const current = await wrap(store.get(row.id));
