@@ -1,9 +1,11 @@
 import { Covers, Entries, coverIdOf, isCoverRef } from './db.js';
 import { esc, safeImg, statusLabel, toast } from './util.js';
 
-// portrait  (< 0.85): fills 2:3 frames
-// square    (0.85–1.3) and landscape (>= 1.3): shown whole over a blurred copy of itself;
-// landscape covers also become a banner on the entry page.
+// portrait (< 0.85), square (0.85–1.3), landscape (>= 1.3).
+// Library cards have a landscape 16:9 frame: landscape covers fill it, portrait and square ones
+// are shown whole over a blurred copy of themselves. On the entry page, landscape covers become
+// a banner and portrait/square ones keep their own proportions in the side column.
+// Every cover with a known shape carries the blurred backdrop; CSS decides where it shows.
 export function coverShape(aspect) {
   if (!aspect) return '';
   return aspect >= 1.3 ? 'landscape' : aspect > 0.85 ? 'square' : 'portrait';
@@ -21,7 +23,7 @@ export function coverHTML(entry, extraClass = '') {
   const shape = image ? coverShape(entry.cover_aspect) : '';
   const aspectVar = shape ? ` style="--aspect:${clampAspect(entry.cover_aspect)}"` : '';
   return `<div class="cover ${extraClass}" data-initial="${esc(initial)}" data-shape="${shape}"${aspectVar}>
-    ${image && shape && shape !== 'portrait' ? backdropHTML(image) : ''}
+    ${image && shape ? backdropHTML(image) : ''}
     ${image ? `<img class="cover-img" ${imgAttr(image)} alt="" loading="lazy" decoding="async">` : ''}
   </div>`;
 }
@@ -71,7 +73,7 @@ export function applyCoverShape(img) {
   const shape = coverShape(aspect);
   cover.dataset.shape = shape;
   cover.style.setProperty('--aspect', clampAspect(aspect));
-  if (shape !== 'portrait' && !cover.querySelector('.cover-backdrop')) {
+  if (!cover.querySelector('.cover-backdrop')) {
     cover.insertAdjacentHTML('afterbegin', backdropHTML(img.src));
   }
 }
