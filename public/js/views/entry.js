@@ -95,9 +95,9 @@ export async function renderEntryDetail(view, id) {
           </button>
         </div>
 
-        <section class="gallery" id="gallery"></section>
+        ${entry.content ? '<iframe class="content-frame panel" id="content-frame" title="Entry content"></iframe>' : ''}
 
-        ${entry.content ? '<h2 class="section-title">Content</h2><iframe class="content-frame panel" id="content-frame" title="Entry content"></iframe>' : ''}
+        <section class="gallery" id="gallery"></section>
 
         <p class="muted small timestamps">Added ${fmtDateTime(entry.created_at)} · Updated <span id="updated-at">${fmtDateTime(entry.updated_at)}</span></p>
       </section>
@@ -243,7 +243,7 @@ export async function renderEntryForm(view, id, query) {
             </label>
           </div>
           <label class="field"><span>Description</span>
-            <textarea name="description" rows="3" maxlength="255">${esc(v.description)}</textarea>
+            <textarea name="description" rows="3" maxlength="500">${esc(v.description)}</textarea>
           </label>
 
           <fieldset class="panel">

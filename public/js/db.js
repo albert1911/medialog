@@ -1,6 +1,6 @@
 // IndexedDB storage layer. Mirrors the original Laravel tables:
 //   media_sources: id, title(100), category(50), description(255)?, link(255)?, timestamps
-//   media_entries: id, title(100), type(50), cover_image?, description(255)?, release_date?,
+//   media_entries: id, title(100), type(50), cover_image?, description(500)?, release_date?,
 //                  chapter_count (default 0 = unknown / ongoing), content (raw html)?, media_source_id? -> media_sources
 //                  (on delete: set null), timestamps
 // plus cover_aspect (cover width / height, used to lay out portrait vs landscape covers)
@@ -261,7 +261,7 @@ function normalizeEntry(data) {
     // A web URL, or "cover:<id>" for an uploaded image (no 255 limit, so long CDN URLs still fit).
     cover_image,
     cover_aspect: cover_image && Number.isFinite(aspect) && aspect > 0 ? Math.round(aspect * 1000) / 1000 : null,
-    description: text(data, 'description', { label: 'Description', max: 255 }),
+    description: text(data, 'description', { label: 'Description', max: 500 }),
     release_date: date(data, 'release_date', { label: 'Release date' }),
     chapter_count,
     content: text(data, 'content', { label: 'Content' }),

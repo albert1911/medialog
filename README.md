@@ -33,7 +33,7 @@ The two stores mirror the original Laravel migrations:
 | `type` | string(50), required (free text, with suggestions) |
 | `cover_image` | a web URL, **or** `cover:<sha256>.<ext>` pointing to an uploaded image in the `covers` store |
 | `cover_aspect` | cover width ÷ height, measured on save. Picks the layout: portrait (< 0.85) fills the card; square and landscape are shown whole over a blurred copy; landscape (≥ 1.3) becomes a banner on the entry page |
-| `description` | string(255), nullable |
+| `description` | up to 500 characters, nullable (the original migration used `string`, i.e. 255; use `text()` if you move back to Laravel) |
 | `release_date` | `YYYY-MM-DD`, nullable |
 | `chapter_count` | unsigned int, default 0 = unknown / ongoing (empty also saves as 0); the original migration defaulted to 1 |
 | `content` | raw HTML, nullable (rendered in a sandboxed iframe, so scripts never run) |
