@@ -71,7 +71,7 @@ export async function renderEntryDetail(view, id) {
           <div><dt>Chapters / Episodes</dt><dd>${entry.chapter_count > 0 ? entry.chapter_count : 'Unknown / ongoing'}</dd></div>
           <div><dt>Source</dt><dd>${
             source
-              ? `<a href="#/sources/${source.id}">${esc(source.title)}</a>${sourceUrl ? ` · <a href="${esc(sourceUrl)}" target="_blank" rel="noopener noreferrer">Open ↗</a>` : ''}`
+              ? `<a href="#/sources/${source.id}">${esc(source.title)}</a>${sourceUrl ? ` · <a class="nowrap" href="${esc(sourceUrl)}" target="_blank" rel="noopener noreferrer">Open ↗</a>` : ''}`
               : '—'
           }</dd></div>
         </dl>

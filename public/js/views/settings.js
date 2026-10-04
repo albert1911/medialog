@@ -42,7 +42,7 @@ function drawGallery(box) {
   if (!config) {
     box.innerHTML = `<p>Gallery images are stored on <strong>Cloudinary</strong> (free plan). Viewing works on every device;
         to <em>add</em> images from this device, connect your Cloudinary account here.
-        <a href="${GALLERY_GUIDE}" target="_blank" rel="noopener noreferrer">Setup guide ↗</a></p>
+        <a class="nowrap" href="${GALLERY_GUIDE}" target="_blank" rel="noopener noreferrer">Setup guide ↗</a></p>
       <form id="gallery-form" class="sync-form" novalidate>
         <label class="field"><span>Cloud name</span>
           <input name="cloud" autocomplete="off" autocapitalize="off" spellcheck="false">
@@ -84,7 +84,7 @@ function drawSync(box) {
 
   if (state === 'off') {
     box.innerHTML = `<p>Keep your library in sync across devices through a <strong>private</strong> GitHub repository.
-        Set it up the same way on each device. <a href="${SYNC_GUIDE}" target="_blank" rel="noopener noreferrer">Setup guide ↗</a></p>
+        Set it up the same way on each device. <a class="nowrap" href="${SYNC_GUIDE}" target="_blank" rel="noopener noreferrer">Setup guide ↗</a></p>
       <form id="sync-form" class="sync-form" novalidate>
         <label class="field"><span>Private repository</span>
           <input name="repo" placeholder="your-username/medialog-data" autocomplete="off" autocapitalize="off" spellcheck="false">
