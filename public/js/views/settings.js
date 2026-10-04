@@ -1,5 +1,5 @@
 import { clearAll, counts, exportData, importData } from '../db.js';
-import { downloadFile, esc, fmtDate, fmtDateTime, formatBytes, todayISO, toast } from '../util.js';
+import { copyText, downloadFile, esc, fmtDate, fmtDateTime, formatBytes, todayISO, toast } from '../util.js';
 import { canInstall, checkForUpdate, getVersion, isStandalone, isUpdateReady, promptInstall } from '../pwa.js';
 import * as AutoBackup from '../autobackup.js';
 import * as Sync from '../sync.js';
@@ -64,15 +64,21 @@ function drawGallery(box) {
     return;
   }
 
-  box.innerHTML = `<p class="ok">✓ Uploading to Cloudinary cloud <strong>${esc(config.cloud)}</strong> with preset <strong>${esc(config.preset)}</strong></p>
+  box.innerHTML = `<p class="ok">✓ Uploading to Cloudinary cloud <strong>${esc(config.cloud)}</strong> with preset <strong class="truncate" title="${esc(config.preset)}">${esc(config.preset)}</strong></p>
     ${error
       ? `<p class="error-text"><strong>Upload problem:</strong> ${esc(error)}${pending ? ` (${pending} waiting)` : ''}</p>`
       : pending ? `<p>Uploading ${pending} image${pending === 1 ? '' : 's'}…</p>` : ''}
     <div class="row">
       ${error ? '<button type="button" class="btn" data-g="retry">Retry uploads</button>' : ''}
+      <button type="button" class="btn" data-g="copy">Copy preset name</button>
       <button type="button" class="btn btn-danger-ghost" data-g="off">Disconnect</button>
     </div>`;
   box.querySelector('[data-g=retry]')?.addEventListener('click', () => G.uploadPending());
+  // The preset name is cut off on small screens; this gets the full name (e.g. for another device).
+  box.querySelector('[data-g=copy]').addEventListener('click', async () => {
+    const copied = await copyText(config.preset);
+    toast(copied ? 'Preset name copied' : 'Could not copy. Your browser blocked it.', copied ? 'success' : 'error');
+  });
   box.querySelector('[data-g=off]').addEventListener('click', async () => {
     if (!confirm('Disconnect Cloudinary on this device? Existing gallery images keep working.')) return;
     await G.clearConfig();

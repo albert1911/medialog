@@ -62,6 +62,8 @@ p { margin: 0 0 0.75rem; }
 
 .muted { color: var(--muted); }
 .nowrap { white-space: nowrap; } /* keeps "Setup guide ↗" etc. on one line */
+/* Long names (e.g. a random upload preset): cut off with "…"; the full text is in the title tooltip. */
+.truncate { display: inline-block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom; }
 .small { font-size: 0.85rem; }
 .mono { font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: 0.85rem; }
 .ok { color: var(--ok); }

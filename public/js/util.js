@@ -81,6 +81,24 @@ export function toast(message, kind = 'info', ms = 3000) {
   }, ms);
 }
 
+// Copies text to the clipboard (must run from a tap/click). Returns true on success.
+export async function copyText(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    // Older browsers / no clipboard permission: copy through a temporary, selected text field.
+    const field = Object.assign(document.createElement('textarea'), { value: text, readOnly: true });
+    field.style.cssText = 'position:fixed;opacity:0;pointer-events:none';
+    document.body.append(field);
+    field.select();
+    let ok = false;
+    try { ok = document.execCommand('copy'); } catch { /* not supported */ }
+    field.remove();
+    return ok;
+  }
+}
+
 export function downloadFile(filename, text, type = 'application/json') {
   const url = URL.createObjectURL(new Blob([text], { type }));
   const a = Object.assign(document.createElement('a'), { href: url, download: filename });
