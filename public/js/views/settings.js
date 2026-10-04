@@ -2,6 +2,64 @@ import { clearAll, counts, exportData, importData } from '../db.js';
 import { downloadFile, esc, fmtDateTime, formatBytes, todayISO, toast } from '../util.js';
 import { canInstall, isStandalone, promptInstall } from '../pwa.js';
 import * as AutoBackup from '../autobackup.js';
+import * as Sync from '../sync.js';
+
+const SYNC_GUIDE = 'https://github.com/albert1911/medialog#sync-between-devices';
+
+function drawSync(box) {
+  const { state, repo, last, error } = Sync.getStatus();
+
+  if (state === 'off') {
+    box.innerHTML = `<p>Keep your library in sync across devices through a <strong>private</strong> GitHub repository.
+        Set it up the same way on each device. <a href="${SYNC_GUIDE}" target="_blank" rel="noopener noreferrer">Setup guide ↗</a></p>
+      <form id="sync-form" class="sync-form" novalidate>
+        <label class="field"><span>Private repository</span>
+          <input name="repo" placeholder="your-username/medialog-data" autocomplete="off" autocapitalize="off" spellcheck="false">
+        </label>
+        <label class="field"><span>Access token</span>
+          <input name="token" type="password" placeholder="github_pat_…" autocomplete="off" autocapitalize="off" spellcheck="false">
+        </label>
+        <p class="muted small">The token is stored only in this browser on this device.</p>
+        <button type="submit" class="btn btn-primary">Connect &amp; sync</button>
+      </form>`;
+    box.querySelector('#sync-form').addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const form = event.target;
+      const button = form.querySelector('button');
+      button.disabled = true;
+      button.textContent = 'Connecting…';
+      try {
+        if (await Sync.connect(form.elements.repo.value, form.elements.token.value)) toast('Sync is on', 'success');
+      } catch (err) {
+        toast(err.message, 'error', 6000);
+        button.disabled = false;
+        button.textContent = 'Connect & sync';
+      }
+    });
+    return;
+  }
+
+  const lines = {
+    idle: `<p class="ok">✓ Syncing with <strong>${esc(repo)}</strong></p>`,
+    syncing: `<p>Syncing with <strong>${esc(repo)}</strong>…</p>`,
+    error: `<p class="error-text"><strong>Sync problem:</strong> ${esc(error)}</p>`,
+  };
+  box.innerHTML = `${lines[state]}
+    <p class="muted small">${last ? `Last synced ${fmtDateTime(last)}` : 'Not synced yet'}.
+      Changes sync a few seconds after you make them, and when you open the app.</p>
+    <div class="row">
+      <button type="button" class="btn" data-sync="now" ${state === 'syncing' ? 'disabled' : ''}>Sync now</button>
+      <button type="button" class="btn btn-danger-ghost" data-sync="off">Disconnect</button>
+    </div>`;
+  box.querySelector('[data-sync="now"]').addEventListener('click', async () => {
+    if (await Sync.syncNow()) toast('Synced', 'success');
+  });
+  box.querySelector('[data-sync="off"]').addEventListener('click', async () => {
+    if (!confirm('Stop syncing this device? Your data stays on this device and in the repository.')) return;
+    await Sync.disconnect();
+    toast('Sync disconnected');
+  });
+}
 
 function drawAutoBackup(box) {
   const { supported, state, fileName, last, error } = AutoBackup.getStatus();
@@ -79,6 +137,11 @@ export async function renderSettings(view) {
       </section>
 
       <section class="panel">
+        <h2>Sync</h2>
+        <div id="sync"></div>
+      </section>
+
+      <section class="panel">
         <h2>Auto-backup</h2>
         <div id="auto-backup"></div>
       </section>
@@ -93,8 +156,8 @@ export async function renderSettings(view) {
           <label class="field"><span>Backup file</span><input type="file" name="file" accept="application/json,.json" required></label>
           <fieldset class="radio-group">
             <legend class="small muted">Import mode</legend>
-            <label><input type="radio" name="mode" value="merge" checked> Merge — add to existing data</label>
-            <label><input type="radio" name="mode" value="replace"> Replace — delete current data first</label>
+            <label><input type="radio" name="mode" value="merge" checked> Merge — add new items, update older copies</label>
+            <label><input type="radio" name="mode" value="replace"> Replace — the backup becomes your whole library</label>
           </fieldset>
           <button type="submit" class="btn">Import</button>
         </form>
@@ -114,6 +177,11 @@ export async function renderSettings(view) {
   drawAutoBackup(autoBox);
   const onStatus = () => (autoBox.isConnected ? drawAutoBackup(autoBox) : AutoBackup.status.removeEventListener('change', onStatus));
   AutoBackup.status.addEventListener('change', onStatus);
+
+  const syncBox = $('#sync');
+  drawSync(syncBox);
+  const onSync = () => (syncBox.isConnected ? drawSync(syncBox) : Sync.status.removeEventListener('change', onSync));
+  Sync.status.addEventListener('change', onSync);
 
   $('#install')?.addEventListener('click', async () => {
     await promptInstall();
@@ -151,7 +219,7 @@ export async function renderSettings(view) {
   $('#wipe').addEventListener('click', async () => {
     if (!confirm(`Delete all ${entries} entries and ${sources} sources? This can't be undone.
 
-(An auto-backup file, if set up, keeps your last non-empty data.)`)) return;
+(If sync is on, they're deleted on your other devices too. An auto-backup file, if set up, keeps your last non-empty data.)`)) return;
     await clearAll();
     toast('All data deleted');
     rerender();

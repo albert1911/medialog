@@ -96,9 +96,11 @@ p { margin: 0 0 0.75rem; }
 .nav a.active { color: var(--accent); }
 
 .topbar-actions { margin-left: auto; display: flex; gap: 0.5rem; }
-.topbar-actions .install-btn, .topbar-actions .backup-btn { display: none; }
-.can-install .topbar-actions .install-btn, .backup-attention .topbar-actions .backup-btn { display: inline-flex; }
-.backup-btn { color: var(--st-paused); border-color: var(--st-paused); }
+.topbar-actions .install-btn, .topbar-actions .backup-btn, .topbar-actions .sync-btn { display: none; }
+.can-install .topbar-actions .install-btn,
+.backup-attention .topbar-actions .backup-btn,
+.sync-attention .topbar-actions .sync-btn { display: inline-flex; }
+.backup-btn, .sync-btn { color: var(--st-paused); border-color: var(--st-paused); }
 
 .container {
   max-width: 1200px;
@@ -191,6 +193,56 @@ input:focus, select:focus, textarea:focus, .btn:focus-visible {
   outline-offset: 1px;
 }
 [aria-invalid="true"] { border-color: var(--danger); outline-color: var(--danger); }
+
+/* ---- dropdowns (browser's own arrow)
+   Chromium (customizable <select>): the open list is styled to match the app;
+   other browsers keep their native list. */
+select { cursor: pointer; }
+
+/* Type / category: dropdown that can switch to a text box for a new value */
+[hidden] { display: none !important; }
+.choice-new { display: flex; gap: 0.5rem; }
+.choice-new input { flex: 1; min-width: 0; }
+.choice select:has(option[value=""]:checked) { color: var(--muted); }
+.choice option[value=""] { display: none; } /* placeholder: shown in the closed field only */
+select:hover { border-color: color-mix(in srgb, var(--accent) 45%, var(--border)); }
+option { background: var(--surface); color: var(--text); }
+
+@supports (appearance: base-select) {
+  select, ::picker(select) { appearance: base-select; }
+  select:open { border-color: var(--accent); }
+
+  ::picker(select) {
+    margin-block: 6px;
+    padding: 4px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--surface);
+    color: var(--text);
+    box-shadow: 0 10px 30px rgb(0 0 0 / 0.25);
+    max-height: min(320px, 60vh);
+    overflow-y: auto;
+    opacity: 0;
+    translate: 0 -4px;
+    transition: opacity 0.12s, translate 0.12s, overlay 0.12s allow-discrete, display 0.12s allow-discrete;
+  }
+  ::picker(select):popover-open { opacity: 1; translate: 0 0; }
+  @starting-style { ::picker(select):popover-open { opacity: 0; translate: 0 -4px; } }
+
+  option {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.65rem;
+    border-radius: 6px;
+    background: transparent;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  option:hover, option:focus-visible { background: var(--surface-2); outline: none; }
+  option:checked { color: var(--accent); font-weight: 600; }
+  option::checkmark { order: 1; margin-left: auto; padding-left: 1rem; color: var(--accent); }
+}
 
 .field { display: flex; flex-direction: column; gap: 0.3rem; min-width: 0; }
 .field > span, .field-head label { font-size: 0.85rem; font-weight: 600; color: var(--muted); }
@@ -425,6 +477,8 @@ legend { font-weight: 700; padding: 0 0.35rem; }
 .settings .danger { border-color: color-mix(in srgb, var(--danger) 45%, var(--border)); }
 .import { display: flex; flex-direction: column; gap: 0.75rem; margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid var(--border); align-items: flex-start; }
 .import .field { width: 100%; }
+.sync-form { display: flex; flex-direction: column; gap: 0.75rem; align-items: flex-start; }
+.sync-form .field { width: 100%; }
 .radio-group { border: 0; padding: 0; display: flex; flex-direction: column; gap: 0.35rem; }
 .radio-group label { display: flex; gap: 0.5rem; align-items: center; }
 

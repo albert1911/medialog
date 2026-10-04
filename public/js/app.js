@@ -1,7 +1,9 @@
 import { initPWA, promptInstall } from './pwa.js';
 import { initAutoBackup, resume as resumeBackup } from './autobackup.js';
+import { initSync, status as syncStatus } from './sync.js';
 import { esc, toast } from './util.js';
-import { applyCoverShape, renderNotFound, shapeCovers } from './components.js';
+import { applyCoverShape, renderNotFound, shapeCovers, watchCovers } from './components.js';
+import { Covers } from './db.js';
 import { renderLibrary } from './views/library.js';
 import { renderEntryDetail, renderEntryForm } from './views/entry.js';
 import { renderSourceDetail, renderSourceForm, renderSourcesList } from './views/sources.js';
@@ -11,12 +13,12 @@ import { renderSettings } from './views/settings.js';
 const routes = [
   [/^\/$/, (v) => renderLibrary(v), 'library', 'Library'],
   [/^\/entries\/new$/, (v, _id, q) => renderEntryForm(v, null, q), 'library', 'New entry'],
-  [/^\/entries\/(\d+)$/, (v, id) => renderEntryDetail(v, Number(id)), 'library', 'Entry'],
-  [/^\/entries\/(\d+)\/edit$/, (v, id, q) => renderEntryForm(v, Number(id), q), 'library', 'Edit entry'],
+  [/^\/entries\/([\w-]+)$/, (v, id) => renderEntryDetail(v, id), 'library', 'Entry'],
+  [/^\/entries\/([\w-]+)\/edit$/, (v, id, q) => renderEntryForm(v, id, q), 'library', 'Edit entry'],
   [/^\/sources$/, (v) => renderSourcesList(v), 'sources', 'Sources'],
   [/^\/sources\/new$/, (v) => renderSourceForm(v, null), 'sources', 'New source'],
-  [/^\/sources\/(\d+)$/, (v, id) => renderSourceDetail(v, Number(id)), 'sources', 'Source'],
-  [/^\/sources\/(\d+)\/edit$/, (v, id) => renderSourceForm(v, Number(id)), 'sources', 'Edit source'],
+  [/^\/sources\/([\w-]+)$/, (v, id) => renderSourceDetail(v, id), 'sources', 'Source'],
+  [/^\/sources\/([\w-]+)\/edit$/, (v, id) => renderSourceForm(v, id), 'sources', 'Edit source'],
   [/^\/settings$/, (v) => renderSettings(v), 'settings', 'Settings'],
 ];
 
@@ -75,7 +77,18 @@ document.getElementById('backup-btn').addEventListener('click', async (event) =>
   else location.hash = '#/settings';
 });
 
+watchCovers(view);
 window.addEventListener('hashchange', router);
+// Tidy up images that no entry uses anymore, once the app is idle.
+setTimeout(() => Covers.prune().catch((err) => console.warn('Cover cleanup failed', err)), 3000);
 initPWA();
 initAutoBackup().catch((err) => console.error('Auto-backup init failed', err));
+initSync().catch((err) => console.error('Sync init failed', err));
+
+// Changes pulled from another device: refresh the page, unless it's a form being filled in.
+syncStatus.addEventListener('remote', () => {
+  const path = location.hash.split('?')[0];
+  if (/\/(new|edit)$/.test(path)) toast('Synced changes from another device');
+  else router();
+});
 router();

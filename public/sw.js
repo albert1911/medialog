@@ -1,5 +1,5 @@
 // Bump VERSION whenever you change files in SHELL so clients pick up a fresh cache.
-const VERSION = 'v3';
+const VERSION = 'v9';
 const CACHE = `medialog-${VERSION}`;
 
 const SHELL = [
@@ -12,6 +12,7 @@ const SHELL = [
   './js/util.js',
   './js/pwa.js',
   './js/autobackup.js',
+  './js/sync.js',
   './js/components.js',
   './js/views/library.js',
   './js/views/entry.js',

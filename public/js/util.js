@@ -9,13 +9,6 @@ export const STATUSES = [
 export const STATUS_VALUES = STATUSES.map((s) => s.value);
 export const statusLabel = (value) => STATUSES.find((s) => s.value === value)?.label ?? value;
 
-// Suggestions only; "type" and "category" are free text like the original string columns.
-export const DEFAULT_TYPES = [
-  'Anime', 'Manga', 'TV Show', 'Movie', 'Book', 'Light Novel', 'Web Novel',
-  'Webtoon', 'Comic', 'Game', 'Podcast', 'YouTube Series',
-];
-export const DEFAULT_CATEGORIES = ['Streaming', 'Website', 'App', 'Publisher', 'Store', 'Library', 'Physical'];
-
 const ESCAPES = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
 export const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ESCAPES[c]);
 
@@ -97,9 +90,9 @@ export function downloadFile(filename, text, type = 'application/json') {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-// Downscale uploads so covers stay small inside IndexedDB. Landscape images get more
-// pixels because they're shown as a wide banner. Returns { url, aspect } (aspect = w / h).
-export async function imageToDataUrl(file) {
+// Downscale uploads so covers stay small. Landscape images get more pixels because
+// they're shown as a wide banner. Returns { blob, aspect } (aspect = w / h).
+export async function imageToBlob(file) {
   const bitmap = await createImageBitmap(file);
   const aspect = bitmap.width / bitmap.height;
   const maxSide = aspect >= 1.3 ? 1280 : 600;
@@ -109,8 +102,18 @@ export async function imageToDataUrl(file) {
   canvas.height = Math.round(bitmap.height * scale);
   canvas.getContext('2d').drawImage(bitmap, 0, 0, canvas.width, canvas.height);
   bitmap.close?.();
-  return { url: canvas.toDataURL('image/jpeg', 0.85), aspect };
+  const blob = await new Promise((resolve, reject) =>
+    canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('Could not encode image'))), 'image/jpeg', 0.85));
+  return { blob, aspect };
 }
+
+export function bytesToBase64(bytes) {
+  let binary = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+  return btoa(binary);
+}
+
+export const base64ToBytes = (b64) => Uint8Array.from(atob(b64.replace(/\s/g, '')), (c) => c.charCodeAt(0));
 
 // Loads an image just to read its proportions; resolves null on error or timeout.
 export function probeAspect(src, timeoutMs = 4000) {

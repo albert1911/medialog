@@ -34,7 +34,6 @@ export async function renderLibrary(view) {
       <p class="muted">Add an anime, show, movie, book, game… anything you want to keep track of.</p>
       <div class="row center">
         <a class="btn btn-primary" href="#/entries/new">+ Add your first entry</a>
-        <a class="btn" href="#/sources/new">Add a source</a>
       </div>
     </div>`;
     return;

@@ -1,10 +1,11 @@
-import { Entries, Sources, ValidationError } from '../db.js';
+import { Covers, Entries, Sources, ValidationError, isCoverRef } from '../db.js';
 import {
-  DEFAULT_TYPES, STATUSES, byText, debounce, esc, fmtDate, fmtDateTime,
-  imageToDataUrl, probeAspect, safeHref, safeImg, statusLabel, toast,
+  STATUSES, byText, debounce, esc, fmtDate, fmtDateTime,
+  imageToBlob, probeAspect, safeHref, safeImg, statusLabel, toast,
 } from '../util.js';
 import {
-  charCounter, coverHTML, coverShape, markInvalid, mountContent, progressPct, renderNotFound,
+  bindChoiceFields, charCounter, choiceFieldHTML, coverHTML, coverShape, markInvalid, mountContent,
+  progressPct, renderNotFound,
 } from '../components.js';
 
 const statusOptions = (selected) =>
@@ -19,10 +20,12 @@ export async function renderEntryDetail(view, id) {
   const source = entry.media_source_id != null ? await Sources.get(entry.media_source_id) : null;
   const sourceUrl = source && safeHref(source.link);
 
-  // Older entries have no stored aspect: measure once (briefly) so the layout is right on first paint.
-  const coverSrc = safeImg(entry.cover_image);
-  const aspect = entry.cover_aspect ?? (coverSrc ? await probeAspect(coverSrc, 1500) : null);
-  const banner = coverSrc && coverShape(aspect) === 'landscape';
+  // Entries without a stored aspect (URL covers saved while offline): measure once, briefly,
+  // so the layout is right on first paint. Uploaded covers always have it.
+  const coverUrl = safeImg(entry.cover_image);
+  const hasCover = isCoverRef(entry.cover_image) || coverUrl;
+  const aspect = entry.cover_aspect ?? (coverUrl ? await probeAspect(coverUrl, 1500) : null);
+  const banner = hasCover && coverShape(aspect) === 'landscape';
   const coverEntry = { ...entry, cover_aspect: aspect };
 
   view.innerHTML = `
@@ -136,15 +139,18 @@ export async function renderEntryForm(view, id, query) {
   if (editing && !existing) return renderNotFound(view, 'Entry not found');
 
   const [sources, entries] = await Promise.all([Sources.all(), Entries.all()]);
-  const types = [...new Set([...DEFAULT_TYPES, ...entries.map((e) => e.type)])].sort(byText);
+  const types = [...new Set(entries.map((e) => e.type))].sort(byText);
   const v = existing ?? {
     status: 'planning',
     progress: 0,
     chapter_count: 1,
     type: query.get('type') ?? '',
-    media_source_id: Number(query.get('source')) || null,
+    media_source_id: query.get('source') || null,
   };
-  let uploaded = v.cover_image?.startsWith('data:') ? v.cover_image : null;
+  // Uploaded cover: existing reference ("cover:…") or a newly picked image (stored on save).
+  let uploaded = isCoverRef(v.cover_image) ? v.cover_image : null;
+  let pendingBlob = null;
+  let pendingUrl = null;
   let coverAspect = v.cover_aspect ?? null;
   const cancelHref = editing ? `#/entries/${id}` : '#/';
 
@@ -170,16 +176,16 @@ export async function renderEntryForm(view, id, query) {
             <input name="title" required maxlength="100" value="${esc(v.title)}" autocomplete="off">
           </label>
           <div class="field-row">
-            <label class="field"><span>Type *</span>
-              <input name="type" required maxlength="50" list="type-list" value="${esc(v.type)}" placeholder="Anime, Movie, Book…" autocomplete="off">
-              <datalist id="type-list">${types.map((t) => `<option value="${esc(t)}">`).join('')}</datalist>
-            </label>
-            <label class="field"><span>Source</span>
+            ${choiceFieldHTML({
+              name: 'type', label: 'Type *', value: v.type, options: types,
+              placeholder: 'Choose a type…', newLabel: '＋ New type…', maxlength: 50,
+            })}
+            <label class="field"><span>Source (original work)</span>
               <select name="media_source_id">
-                <option value="">— None —</option>
+                <option value="">— None (standalone) —</option>
                 ${[...sources].sort((a, b) => byText(a.title, b.title)).map((s) => `<option value="${s.id}" ${s.id === v.media_source_id ? 'selected' : ''}>${esc(s.title)} (${esc(s.category)})</option>`).join('')}
               </select>
-              <a class="small" href="#/sources/new">+ New source</a>
+              <small class="muted">Optional: the game or work this story comes from. <a href="#/sources/new">+ New source</a></small>
             </label>
           </div>
           <div class="field-row">
@@ -240,15 +246,21 @@ export async function renderEntryForm(view, id, query) {
     landscape: 'Landscape: shown whole on cards, and as a banner on the entry page.',
   };
   const drawCover = () => {
-    const cover_image = uploaded || urlInput.value.trim();
+    const cover_image = pendingUrl || uploaded || urlInput.value.trim();
     preview.innerHTML = coverHTML({ title: form.elements.title.value || '?', cover_image, cover_aspect: coverAspect }, 'cover-lg cover-natural');
     hint.textContent = cover_image && coverAspect ? HINTS[coverShape(coverAspect)] : '';
   };
   drawCover();
 
   let probeSeq = 0;
+  const dropPending = () => {
+    if (pendingUrl) URL.revokeObjectURL(pendingUrl);
+    pendingBlob = pendingUrl = null;
+  };
+
   urlInput.addEventListener('input', debounce(async () => {
     uploaded = null;
+    dropPending();
     const seq = ++probeSeq;
     coverAspect = null;
     drawCover();
@@ -263,7 +275,10 @@ export async function renderEntryForm(view, id, query) {
     const file = event.target.files[0];
     if (!file) return;
     try {
-      ({ url: uploaded, aspect: coverAspect } = await imageToDataUrl(file));
+      dropPending();
+      ({ blob: pendingBlob, aspect: coverAspect } = await imageToBlob(file));
+      pendingUrl = URL.createObjectURL(pendingBlob);
+      uploaded = null;
       probeSeq++;
       urlInput.value = '';
       drawCover();
@@ -274,6 +289,7 @@ export async function renderEntryForm(view, id, query) {
   });
   view.querySelector('#cover-clear').addEventListener('click', () => {
     uploaded = null;
+    dropPending();
     coverAspect = null;
     probeSeq++;
     urlInput.value = '';
@@ -292,10 +308,20 @@ export async function renderEntryForm(view, id, query) {
   }, 400));
 
   charCounter(form.elements.description);
+  bindChoiceFields(form);
 
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
     const data = Object.fromEntries(new FormData(form));
+    try {
+      if (pendingBlob) {
+        uploaded = await Covers.add(pendingBlob);
+        dropPending();
+      }
+    } catch (err) {
+      toast(`Could not save the image: ${err.message}`, 'error');
+      return;
+    }
     data.cover_image = uploaded || data.cover_url;
     data.cover_aspect = coverAspect;
     delete data.cover_url;
