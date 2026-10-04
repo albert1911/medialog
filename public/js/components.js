@@ -12,13 +12,6 @@ export function coverShape(aspect) {
 }
 
 const clampAspect = (aspect) => Math.min(Math.max(aspect, 0.5), 1.3);
-// Library cards (masonry) come in two shapes: landscape 16:9 and portrait 2:3. Each cover gets
-// the frame that crops it least and fills it. The switch point (~1.09) is where both crop
-// equally; square images therefore get the portrait frame.
-const CARD_LANDSCAPE = 16 / 9;
-const CARD_PORTRAIT = 2 / 3;
-const CARD_DEFAULT_ASPECT = CARD_LANDSCAPE; // no cover, or proportions not known yet
-const cardAspect = (aspect) => (aspect && aspect < Math.sqrt(CARD_LANDSCAPE * CARD_PORTRAIT) ? CARD_PORTRAIT : CARD_LANDSCAPE);
 // Web URLs go straight into src. Uploaded images ("cover:<id>") get data-cover instead and
 // are loaded from the covers store only when they scroll into view (see watchCovers).
 const imgAttr = (image) => (isCoverRef(image) ? `data-cover="${esc(coverIdOf(image))}"` : `src="${esc(image)}"`);
@@ -28,7 +21,7 @@ export function coverHTML(entry, extraClass = '') {
   const image = isCoverRef(entry.cover_image) ? entry.cover_image : safeImg(entry.cover_image);
   const initial = (entry.title ?? '?').trim().charAt(0).toUpperCase() || '?';
   const shape = image ? coverShape(entry.cover_aspect) : '';
-  const aspectVar = shape ? ` style="--aspect:${clampAspect(entry.cover_aspect)};--card-aspect:${cardAspect(entry.cover_aspect)}"` : '';
+  const aspectVar = shape ? ` style="--aspect:${clampAspect(entry.cover_aspect)}"` : '';
   return `<div class="cover ${extraClass}" data-initial="${esc(initial)}" data-shape="${shape}"${aspectVar}>
     ${image && shape ? backdropHTML(image) : ''}
     ${image ? `<img class="cover-img" ${imgAttr(image)} alt="" loading="lazy" decoding="async">` : ''}
@@ -80,7 +73,6 @@ export function applyCoverShape(img) {
   const shape = coverShape(aspect);
   cover.dataset.shape = shape;
   cover.style.setProperty('--aspect', clampAspect(aspect));
-  cover.style.setProperty('--card-aspect', cardAspect(aspect));
   if (!cover.querySelector('.cover-backdrop')) {
     cover.insertAdjacentHTML('afterbegin', backdropHTML(img.src));
   }
@@ -114,54 +106,11 @@ export function entryCard(e) {
   </article>`;
 }
 
-// ---- masonry layout for entry cards
-// Cards go into columns, each into the currently shortest one (in sort order). Heights are
-// estimated from the stored cover proportions, so the layout doesn't jump while images load.
-const MIN_COLUMN_WIDTH = 210;
-const CARD_BODY_HEIGHT = 110; // title, type, progress (approximate; only used to balance columns)
-
-const gapOf = (container) => parseFloat(getComputedStyle(container).columnGap) || 20;
-// While a page is rendered off-screen (see router) the container has no width yet: use the view's.
-const widthOf = (container) => container.clientWidth || document.getElementById('view')?.clientWidth - 32 || 800;
-
-function columnCount(container) {
-  const width = widthOf(container);
-  const gap = gapOf(container);
-  return Math.max(2, Math.floor((width + gap) / (MIN_COLUMN_WIDTH + gap)));
-}
-
-function layoutCards(container) {
-  const entries = container.cardEntries;
-  const columns = columnCount(container);
-  container.cardColumns = columns;
-  const columnWidth = (widthOf(container) - gapOf(container) * (columns - 1)) / columns;
-  const heights = Array(columns).fill(0);
-  const html = Array.from({ length: columns }, () => []);
-  for (const entry of entries) {
-    const shortest = heights.indexOf(Math.min(...heights));
-    html[shortest].push(entryCard(entry));
-    const aspect = entry.cover_image ? cardAspect(entry.cover_aspect) : CARD_DEFAULT_ASPECT;
-    heights[shortest] += columnWidth / aspect + CARD_BODY_HEIGHT;
-  }
-  container.innerHTML = html.map((cards) => `<div class="masonry-col">${cards.join('')}</div>`).join('');
-}
-
-// Renders entry cards into `container` as a masonry layout, or `emptyHTML` if there are none.
-// Re-flows when the container's width changes the number of columns.
+// Renders entry cards into `container` as a grid of same-shape (16:9) cards, or `emptyHTML`
+// if there are none.
 export function renderCards(container, entries, emptyHTML) {
-  container.classList.add('masonry');
-  container.cardEntries = entries;
-  if (!entries.length) {
-    container.innerHTML = emptyHTML;
-    return;
-  }
-  layoutCards(container);
-  if (!container.cardResize) {
-    container.cardResize = new ResizeObserver(() => {
-      if (container.cardEntries?.length && columnCount(container) !== container.cardColumns) layoutCards(container);
-    });
-    container.cardResize.observe(container);
-  }
+  container.classList.add('cards');
+  container.innerHTML = entries.length ? entries.map(entryCard).join('') : emptyHTML;
 }
 
 // Handles the "+1" buttons on entry cards inside `container`.

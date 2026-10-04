@@ -342,15 +342,11 @@ legend { font-weight: 700; padding: 0 0.35rem; }
   .filters input[type="search"] { grid-column: 1 / -1; }
 }
 
-/* Entry cards in masonry columns (laid out by renderCards in components.js). */
-.masonry { display: flex; align-items: flex-start; column-gap: 1.25rem; }
-.masonry-col { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1.25rem; }
-@media (max-width: 420px) {
-  .masonry { column-gap: 0.85rem; }
-  .masonry-col { gap: 0.85rem; }
-}
+/* Entry cards: a regular grid of same-size cards (rendered by renderCards in components.js). */
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 1.25rem; }
+@media (max-width: 420px) { .cards { grid-template-columns: repeat(2, 1fr); gap: 0.85rem; } }
 
-.empty-inline { flex: 1; padding: 2rem 0; text-align: center; }
+.empty-inline { grid-column: 1 / -1; padding: 2rem 0; text-align: center; }
 
 .card {
   position: relative;
@@ -428,11 +424,13 @@ legend { font-weight: 700; padding: 0 0.35rem; }
   filter: drop-shadow(0 4px 14px rgb(0 0 0 / 0.35));
 }
 
-/* Library cards (masonry): two frames, landscape 16:9 or portrait 2:3 (--card-aspect, picked
-   per cover in components.js); the cover fills its frame, so no blurred backdrop needed. */
-.card .cover { aspect-ratio: var(--card-aspect, 16 / 9); }
-.card .cover .cover-img { object-fit: cover; filter: none; }
-.card .cover .cover-backdrop { display: none; }
+/* Library cards: every card has the same landscape 16:9 frame. Landscape covers fill it;
+   portrait and square ones are shown whole over a blurred copy of themselves (the default
+   .cover treatment above). */
+.card .cover { aspect-ratio: 16 / 9; }
+.card .cover[data-shape="landscape"] .cover-img { object-fit: cover; filter: none; }
+.card .cover[data-shape="landscape"] .cover-backdrop { display: none; } /* fully covered anyway */
+.card .cover[data-shape="portrait"] .cover-img { object-fit: contain; filter: drop-shadow(0 4px 14px rgb(0 0 0 / 0.35)); }
 
 .cover-lg { border-radius: var(--radius); box-shadow: var(--shadow); }
 /* Side-column covers keep their own proportions instead of being cropped to 2:3. */
