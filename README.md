@@ -141,4 +141,4 @@ Every change is saved to IndexedDB immediately. Backups protect you if the brows
 
 ## Notes
 - Covers given as remote URLs need internet to display. Uploaded covers are stored locally and resized (600px; 1280px for landscape).
-- **Releasing a new version:** after changing app files, bump `VERSION` (and set `RELEASED` to today) at the top of `public/sw.js`, then push. The version shows in *Settings → App*. Open copies download the update in the background (on launch, when you switch back to the app, or via *Check for updates*), then show a **"A new version is ready"** bar with a Reload button.
+- **Releasing a new version:** after changing app files, bump `VERSION` (and set `RELEASED` to today) at the top of `public/sw.js`, then push. Use the next whole number for a new feature or behavior change (`'23.4'` → `'24'`), and add `.1` for a small UI adjustment (`'23'` → `'23.1'` → … → `'23.10'`). The version shows in *Settings → App*. Open copies download the update in the background (on launch, when you switch back to the app, or via *Check for updates*), then show a **"A new version is ready"** bar with a Reload button.

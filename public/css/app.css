@@ -85,6 +85,7 @@ p { margin: 0 0 0.75rem; }
 }
 
 .brand { display: flex; align-items: center; gap: 0.5rem; font-weight: 700; font-size: 1.1rem; color: var(--text); }
+.brand img { width: 38px; height: 38px; display: block; } /* same height as the buttons */
 .btn.back-btn { gap: 0.35rem; padding-inline: 0.6rem 0.85rem; font-size: 1.5rem; line-height: 1; }
 .back-btn span { font-size: 0.95rem; }
 .brand:hover { text-decoration: none; }
