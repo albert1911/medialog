@@ -80,7 +80,7 @@ Medialog can keep your laptop and phone in sync through a file in a **private** 
 1. **Create the data repository.** On GitHub, click **New repository**, name it e.g. `medialog-data`, choose **Private**, tick **Add a README file**, and create it. Keep it separate from the app's repo: the app repo is public, the data repo must be private.
 2. **Create an access token** that can only touch that repository:
    1. Open GitHub → your avatar → **Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate new token** (direct link: https://github.com/settings/personal-access-tokens/new).
-   2. **Token name:** `Medialog sync`. **Expiration:** your choice. When it expires, sync shows a warning and you paste a new token.
+   2. **Token name:** anything you'll recognize later (it's just a label; the app doesn't use it). **Expiration:** your choice. When it expires, sync shows a warning and you paste a new token.
    3. **Repository access:** *Only select repositories* → pick `medialog-data`.
    4. **Permissions → Repository permissions → Contents:** *Read and write*. (*Metadata: Read-only* is added automatically.) Leave everything else at *No access*.
    5. Click **Generate token** and copy it (it starts with `github_pat_`). GitHub shows it only once, so keep it somewhere safe (e.g. a password manager) to paste on your other devices.
