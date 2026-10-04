@@ -500,12 +500,12 @@ legend { font-weight: 700; padding: 0 0.35rem; }
 
 @media (max-width: 720px) {
   .detail { grid-template-columns: 1fr; gap: 1.25rem; }
-  .detail-side { position: static; display: grid; grid-template-columns: 130px 1fr; align-items: start; }
+  .detail-side { position: static; display: grid; grid-template-columns: 160px 1fr; align-items: start; }
   .detail.has-banner .detail-side { grid-template-columns: 1fr; }
   .detail.has-banner .detail-main { order: -1; }
   /* Portrait cover (or the placeholder): cover beside the title & facts, tracking panel at the end of the page (as with landscape covers).
      The two columns dissolve (display: contents) so their parts can be placed on one grid. */
-  .detail:has(> .detail-side > .cover:is([data-shape="portrait"], [data-shape=""])) { grid-template-columns: 130px 1fr; column-gap: 1rem; row-gap: 1.25rem; }
+  .detail:has(> .detail-side > .cover:is([data-shape="portrait"], [data-shape=""])) { grid-template-columns: 160px 1fr; column-gap: 1rem; row-gap: 1.25rem; }
   .detail:has(> .detail-side > .cover:is([data-shape="portrait"], [data-shape=""])) > .detail-side,
   .detail:has(> .detail-side > .cover:is([data-shape="portrait"], [data-shape=""])) > .detail-main { display: contents; }
   .detail:has(> .detail-side > .cover:is([data-shape="portrait"], [data-shape=""])) .detail-side > .cover { grid-column: 1; grid-row: 1; }
