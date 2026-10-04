@@ -26,11 +26,56 @@ const routes = [
 const view = document.getElementById('view');
 let renderSeq = 0;
 
+// ---- page history for the Back button: pages you viewed, without forms (new / edit)
+const HISTORY_KEY = 'medialog.history';
+const isForm = (raw) => /\/(new|edit)$/.test(raw.split('?')[0]);
+const backButton = document.getElementById('back-btn');
+let pages = [];
+let goingBackTo = null;
+try { pages = JSON.parse(sessionStorage.getItem(HISTORY_KEY) || '[]'); } catch { /* ignore */ }
+
+function trackPage(raw) {
+  if (!isForm(raw)) {
+    if (goingBackTo === raw) {
+      while (pages.length && pages.at(-1) !== raw) pages.pop(); // our Back button
+    } else if (pages.at(-2) === raw) {
+      pages.pop(); // the browser's back button
+    } else if (pages.at(-1) !== raw) {
+      pages.push(raw);
+    }
+    pages = pages.slice(-50);
+    try { sessionStorage.setItem(HISTORY_KEY, JSON.stringify(pages)); } catch { /* ignore */ }
+  }
+  goingBackTo = null;
+  backButton.hidden = !backTarget(raw);
+}
+
+// From a form, back means the page the form was opened from; otherwise the page before this one.
+const backTarget = (raw) => (isForm(raw) ? pages.at(-1) : pages.at(-2));
+
+backButton.addEventListener('click', () => {
+  const target = backTarget(location.hash.slice(1) || '/');
+  if (!target) return;
+  goingBackTo = target;
+  location.hash = `#${target}`;
+});
+
+// A deleted entry/source: drop its pages so Back never leads to "not found".
+document.addEventListener('medialog:forget', (event) => {
+  const gone = event.detail;
+  pages = pages.filter((raw) => {
+    const path = raw.split('?')[0];
+    return path !== gone && !path.startsWith(`${gone}/`);
+  });
+  try { sessionStorage.setItem(HISTORY_KEY, JSON.stringify(pages)); } catch { /* ignore */ }
+});
+
 async function router() {
   const raw = location.hash.slice(1) || '/';
   const [path, qs = ''] = raw.split('?');
   const query = new URLSearchParams(qs);
   const seq = ++renderSeq;
+  trackPage(raw);
 
   const match = routes.find(([pattern]) => pattern.test(path));
   const [pattern, render, section, title] = match ?? [null, null, null, 'Not found'];

@@ -124,6 +124,7 @@ export async function renderSourceDetail(view, id) {
     const note = entries.length ? `\n\n${entries.length} linked ${entries.length === 1 ? 'entry' : 'entries'} will be kept but unlinked.` : '';
     if (!confirm(`Delete source “${source.title}”?${note}`)) return;
     await Sources.remove(source.id);
+    document.dispatchEvent(new CustomEvent('medialog:forget', { detail: `/sources/${source.id}` }));
     toast('Source deleted');
     location.hash = '#/sources';
   });
@@ -157,7 +158,7 @@ export async function renderSourceForm(view, id) {
         <textarea name="description" rows="3" maxlength="255">${esc(v.description)}</textarea>
       </label>
       <div class="form-actions">
-        <a class="btn btn-ghost" href="${editing ? `#/sources/${id}` : '#/sources'}">Cancel</a>
+        <a class="btn btn-secondary" href="${editing ? `#/sources/${id}` : '#/sources'}">Cancel</a>
         <button type="submit" class="btn btn-primary">${editing ? 'Save changes' : 'Create source'}</button>
       </div>
     </form>`;

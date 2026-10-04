@@ -1,6 +1,6 @@
 // The app's version, shown in Settings → App. Whenever you change any app file, bump VERSION
 // (and set RELEASED to today) so installed copies download the new files.
-const VERSION = 12;
+const VERSION = 23;
 const RELEASED = '2026-10-04';
 const CACHE = `medialog-v${VERSION}`;
 

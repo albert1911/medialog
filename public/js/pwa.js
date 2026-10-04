@@ -95,8 +95,10 @@ function showUpdateBar() {
   bar.className = 'update-bar';
   bar.setAttribute('role', 'status');
   bar.innerHTML = `<span>A new version of Medialog is ready.</span>
-    <button type="button" class="btn btn-small btn-primary" data-u="reload">Reload</button>
-    <button type="button" class="btn btn-small btn-ghost" data-u="later" aria-label="Dismiss">Later</button>`;
+    <div class="update-actions">
+      <button type="button" class="btn btn-small btn-primary" data-u="reload">Reload</button>
+      <button type="button" class="btn btn-small btn-secondary" data-u="later" aria-label="Dismiss">Later</button>
+    </div>`;
   bar.querySelector('[data-u=reload]').addEventListener('click', () => location.reload());
   bar.querySelector('[data-u=later]').addEventListener('click', () => bar.remove());
   document.body.append(bar);

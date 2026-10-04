@@ -1,5 +1,6 @@
 <!doctype html>
 <html lang="en">
+
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -13,8 +14,16 @@
   <link rel="stylesheet" href="css/app.css">
   <script type="module" src="js/app.js"></script>
 </head>
+
 <body>
   <header class="topbar">
+    <button type="button" class="btn btn-ghost back-btn" id="back-btn" aria-label="Back" hidden>
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"
+        style="width: 16px;">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M9 15 3 9m0 0 6-6M3 9h12a6 6 0 0 1 0 12h-3" />
+      </svg>
+      <span>Back</span>
+    </button>
     <a href="#/" class="brand"><img src="icons/icon.svg" alt="" width="28" height="28"><span>Medialog</span></a>
     <nav class="nav" aria-label="Main">
       <a href="#/" data-nav="library">Library</a>
@@ -22,13 +31,15 @@
       <a href="#/settings" data-nav="settings">Settings</a>
     </nav>
     <div class="topbar-actions">
-      <a href="#/settings" class="btn btn-ghost sync-btn" title="Sync needs attention">⚠ Sync</a>
-      <a href="#/settings" class="btn btn-ghost backup-btn" id="backup-btn" title="Auto-backup needs attention">⚠ Backup</a>
-      <button type="button" class="btn btn-ghost install-btn" id="install-btn">Install</button>
+      <a href="#/settings" class="btn btn-warning sync-btn" title="Sync needs attention">⚠ Sync</a>
+      <a href="#/settings" class="btn btn-warning backup-btn" id="backup-btn" title="Auto-backup needs attention">⚠
+        Backup</a>
+      <button type="button" class="btn btn-secondary install-btn" id="install-btn">Install</button>
       <a href="#/entries/new" class="btn btn-primary">+ Add</a>
     </div>
   </header>
   <main id="view" class="container"></main>
   <div id="toasts" aria-live="polite"></div>
 </body>
+
 </html>

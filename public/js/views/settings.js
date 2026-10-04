@@ -167,7 +167,7 @@ function drawAutoBackup(box) {
     box.innerHTML = `${notes[state]}
       <p class="muted small">${lastText}. Changes are only written while this app is open.</p>
       <div class="row">
-        ${state === 'paused' ? '<button type="button" class="btn btn-primary" data-ab="resume">Resume backup</button>' : '<button type="button" class="btn" data-ab="now">Back up now</button>'}
+        ${state === 'paused' ? '<button type="button" class="btn" data-ab="resume">Resume backup</button>' : '<button type="button" class="btn" data-ab="now">Back up now</button>'}
         <button type="button" class="btn btn-ghost" data-ab="choose">Change file…</button>
         <button type="button" class="btn btn-danger-ghost" data-ab="off">Turn off</button>
       </div>`;

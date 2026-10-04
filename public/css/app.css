@@ -19,6 +19,7 @@
   --st-paused: #e5a82f;
   --st-dropped: #e0475f;
   --topbar-h: 60px;
+  --btn-edge: #000; /* mixed into filled buttons for their border: darker in light mode */
 }
 
 @media (prefers-color-scheme: dark) {
@@ -35,6 +36,7 @@
     --danger: #ff6b81;
     --ok: #7bd555;
     --shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 8px 24px rgb(0 0 0 / 0.25);
+    --btn-edge: #fff; /* lighter in dark mode, so it stands out from the dark background */
   }
 }
 
@@ -83,6 +85,8 @@ p { margin: 0 0 0.75rem; }
 }
 
 .brand { display: flex; align-items: center; gap: 0.5rem; font-weight: 700; font-size: 1.1rem; color: var(--text); }
+.btn.back-btn { gap: 0.35rem; padding-inline: 0.6rem 0.85rem; font-size: 1.5rem; line-height: 1; }
+.back-btn span { font-size: 0.95rem; }
 .brand:hover { text-decoration: none; }
 
 .nav { display: flex; gap: 0.25rem; }
@@ -100,7 +104,6 @@ p { margin: 0 0 0.75rem; }
 .can-install .topbar-actions .install-btn,
 .backup-attention .topbar-actions .backup-btn,
 .sync-attention .topbar-actions .sync-btn { display: inline-flex; }
-.backup-btn, .sync-btn { color: var(--st-paused); border-color: var(--st-paused); }
 
 .container {
   max-width: 1200px;
@@ -133,6 +136,9 @@ p { margin: 0 0 0.75rem; }
   /* backdrop-filter would make the topbar the containing block of the fixed bottom nav */
   .topbar { gap: 0.75rem; backdrop-filter: none; background: var(--surface); }
   .brand span { display: none; }
+  .btn.back-btn { padding-inline: 0.75rem; }
+  .back-btn span { display: none; }
+  .back-btn + .brand { margin-left: -0.25rem; }
   .nav {
     position: fixed;
     inset: auto 0 0 0;
@@ -154,9 +160,14 @@ p { margin: 0 0 0.75rem; }
   align-items: center;
   justify-content: center;
   gap: 0.35rem;
-  min-height: 38px;
-  padding: 0.45rem 0.95rem;
-  border: 1px solid var(--border);
+  /* Fixed height (not min-height): every button of a size is exactly as tall, whatever its
+     text, icon or font metrics. Buttons never wrap (white-space: nowrap below). */
+  height: 38px;
+  padding: 0 0.95rem;
+  line-height: 1;
+  /* Outlined buttons: a border with real contrast (text color, partly transparent), so their
+     edge reads as clearly as a filled button's and both look the same size. */
+  border: 1px solid color-mix(in srgb, var(--text) 28%, transparent);
   border-radius: 8px;
   background: var(--surface);
   color: var(--text);
@@ -167,13 +178,28 @@ p { margin: 0 0 0.75rem; }
 }
 .btn:hover { text-decoration: none; border-color: var(--accent); }
 .btn:disabled { opacity: 0.6; cursor: default; }
-.btn-primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+/* Every button has a visible border: filled ones get a darker edge of their own color. */
+.btn-primary,
+.btn-primary:hover { background: var(--accent); border-color: color-mix(in srgb, var(--accent) 55%, var(--btn-edge)); color: var(--accent-ink); }
 .btn-primary:hover { filter: brightness(1.07); }
+/* Filled grey: the secondary action next to a filled button (never mix filled and outlined). */
+.btn-secondary,
+.btn-secondary:hover {
+  --btn-fill: color-mix(in srgb, var(--text) 10%, var(--surface));
+  background: var(--btn-fill);
+  border-color: color-mix(in srgb, var(--btn-fill) 70%, var(--btn-edge));
+}
+.btn-secondary:hover { filter: brightness(0.97); }
+/* Filled amber: attention buttons in the top bar (⚠ Sync / ⚠ Backup). */
+.btn-warning, .btn-warning:hover { background: var(--st-paused); border-color: color-mix(in srgb, var(--st-paused) 55%, var(--btn-edge)); color: #2a1d00; }
+.btn-warning:hover { filter: brightness(1.05); }
 .btn-ghost { background: transparent; }
-.btn-danger { background: var(--danger); border-color: var(--danger); color: #fff; }
-.btn-danger-ghost { background: transparent; color: var(--danger); }
+.btn-danger,
+.btn-danger:hover { background: var(--danger); border-color: color-mix(in srgb, var(--danger) 55%, var(--btn-edge)); color: #fff; }
+.btn-danger:hover { filter: brightness(1.07); }
+.btn-danger-ghost { background: transparent; color: var(--danger); border-color: color-mix(in srgb, var(--danger) 60%, transparent); }
 .btn-danger-ghost:hover { border-color: var(--danger); }
-.btn-small { min-height: 32px; padding: 0.3rem 0.7rem; font-size: 0.85rem; }
+.btn-small { height: 32px; padding: 0 0.7rem; font-size: 0.85rem; }
 .btn-icon { width: 38px; padding: 0; font-size: 1.15rem; }
 
 input, select, textarea {
@@ -245,7 +271,7 @@ option { background: var(--surface); color: var(--text); }
 }
 
 .field { display: flex; flex-direction: column; gap: 0.3rem; min-width: 0; }
-.field > span, .field-head label { font-size: 0.85rem; font-weight: 600; color: var(--muted); }
+.field > span, .field-label, .field-head label { font-size: 0.85rem; font-weight: 600; color: var(--muted); }
 .field-head { display: flex; align-items: center; justify-content: space-between; }
 .field-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; }
 .counter { align-self: flex-end; }
@@ -432,6 +458,17 @@ legend { font-weight: 700; padding: 0 0.35rem; }
   .detail-side { position: static; display: grid; grid-template-columns: 130px 1fr; align-items: start; }
   .detail.has-banner .detail-side { grid-template-columns: 1fr; }
   .detail.has-banner .detail-main { order: -1; }
+  /* Portrait cover (or the placeholder): cover beside the title & facts, tracking panel below.
+     The two columns dissolve (display: contents) so their parts can be placed on one grid. */
+  .detail:has(> .detail-side > .cover:is([data-shape="portrait"], [data-shape=""])) { grid-template-columns: 130px 1fr; column-gap: 1rem; row-gap: 1.25rem; }
+  .detail:has(> .detail-side > .cover:is([data-shape="portrait"], [data-shape=""])) > .detail-side,
+  .detail:has(> .detail-side > .cover:is([data-shape="portrait"], [data-shape=""])) > .detail-main { display: contents; }
+  .detail:has(> .detail-side > .cover:is([data-shape="portrait"], [data-shape=""])) .detail-side > .cover { grid-column: 1; grid-row: 1; }
+  .detail:has(> .detail-side > .cover:is([data-shape="portrait"], [data-shape=""])) .detail-head { grid-column: 2; grid-row: 1; min-width: 0; }
+  .detail:has(> .detail-side > .cover:is([data-shape="portrait"], [data-shape=""])) .detail-head .facts { grid-template-columns: 1fr; gap: 0.5rem; margin: 0.75rem 0 0; }
+  .detail:has(> .detail-side > .cover:is([data-shape="portrait"], [data-shape=""])) .track { grid-column: 1 / -1; grid-row: 2; }
+  .detail:has(> .detail-side > .cover:is([data-shape="portrait"], [data-shape=""])) .detail-main > :not(.detail-head) { grid-column: 1 / -1; }
+  .detail:has(> .detail-side > .cover:is([data-shape="portrait"], [data-shape=""])) .description, .detail:has(> .detail-side > .cover:is([data-shape="portrait"], [data-shape=""])) .gallery { margin: 0; }
   .detail-title { font-size: 1.45rem; }
 }
 
@@ -504,6 +541,8 @@ legend { font-weight: 700; padding: 0 0.35rem; }
   font-weight: 600;
   animation: toast-in 0.2s ease-out;
 }
+/* The two buttons are one unit: if the bar wraps, they move to the next line together. */
+.update-actions { display: flex; gap: 0.5rem; flex-shrink: 0; margin-left: auto; }
 @media (max-width: 520px) { .update-bar { flex-wrap: wrap; width: calc(100vw - 2rem); } }
 
 /* ---------------------------------------------------------------- gallery */

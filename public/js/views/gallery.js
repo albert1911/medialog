@@ -1,7 +1,9 @@
 // Gallery section on the entry page, plus the full-screen viewer.
-import { Gallery, changes } from '../db.js';
+// The entry's cover is shown as the first tile (display only: it isn't a gallery record,
+// isn't synced as one, and can't be deleted from here — change it via Edit).
+import { Covers, Gallery, changes, coverIdOf, isCoverRef } from '../db.js';
 import * as G from '../gallery.js';
-import { toast } from '../util.js';
+import { safeImg, toast } from '../util.js';
 
 const thumbObserver = new IntersectionObserver((items) => {
   for (const item of items) {
@@ -11,38 +13,64 @@ const thumbObserver = new IntersectionObserver((items) => {
   }
 }, { rootMargin: '300px' });
 
-export async function mountGallery(section, entryId) {
-  let images = [];
+const coverUrls = new Map(); // cover id -> object URL
+
+// URL of the cover image (uploaded covers come from the device, web covers load directly).
+async function coverUrl(image) {
+  if (isCoverRef(image)) {
+    const id = coverIdOf(image);
+    if (!coverUrls.has(id)) {
+      const record = await Covers.get(id);
+      if (!record) return null;
+      coverUrls.set(id, URL.createObjectURL(record.blob));
+    }
+    return coverUrls.get(id);
+  }
+  return safeImg(image);
+}
+
+// Everything the grid and viewer show: { label, url(size), image? (gallery record) }.
+function itemsFor(entry, images) {
+  const items = images.map((image) => ({ image, url: (size) => G.imageUrl(image, size) }));
+  if (entry?.cover_image) items.unshift({ cover: true, url: () => coverUrl(entry.cover_image) });
+  return items;
+}
+
+export async function mountGallery(section, entry) {
+  let items = [];
 
   async function draw() {
-    images = await Gallery.byEntry(entryId);
+    const images = await Gallery.byEntry(entry.id);
+    items = itemsFor(entry, images);
     const canAdd = Boolean(G.getConfig());
     section.innerHTML = `
       <div class="section-head">
         <h2 class="section-title">Gallery ${images.length ? `<span class="muted">(${images.length})</span>` : ''}</h2>
         ${canAdd ? '<label class="btn btn-small">＋ Add images<input type="file" accept="image/*" multiple hidden></label>' : ''}
       </div>
-      ${images.length
-        ? `<div class="gallery-grid">${images.map((img, i) => `
-            <button type="button" class="gallery-tile" data-index="${i}" aria-label="Open image ${i + 1} of ${images.length}">
+      ${items.length
+        ? `<div class="gallery-grid">${items.map((item, i) => `
+            <button type="button" class="gallery-tile" data-index="${i}" aria-label="${item.cover ? 'Open cover image' : `Open image ${i + 1}`}">
               <img alt="" hidden>
-              ${img.pending ? '<span class="gallery-badge">Uploading…</span>' : ''}
+              ${item.cover ? '<span class="gallery-badge">Cover</span>' : ''}
+              ${item.image?.pending ? '<span class="gallery-badge">Uploading…</span>' : ''}
             </button>`).join('')}</div>`
-        : `<p class="muted small">${canAdd
-            ? 'No images yet.'
-            : 'No images yet. To add some, set up image hosting in <a href="#/settings">Settings → Gallery</a>.'}</p>`}`;
+        : ''}
+      ${images.length ? '' : `<p class="muted small">${canAdd
+        ? 'No gallery images yet.'
+        : 'No gallery images yet. To add some, set up image hosting in <a href="#/settings">Settings → Gallery</a>.'}</p>`}`;
 
     section.querySelectorAll('.gallery-tile').forEach((tile) => {
-      const img = images[Number(tile.dataset.index)];
+      const item = items[Number(tile.dataset.index)];
       tile.loadThumb = async () => {
-        const url = await G.imageUrl(img, 'thumb');
+        const url = await item.url('thumb');
         if (!url) return tile.classList.add('unavailable');
         const el = tile.querySelector('img');
         el.src = url;
         el.hidden = false;
       };
       thumbObserver.observe(tile);
-      tile.addEventListener('click', () => openViewer(images, Number(tile.dataset.index), draw));
+      tile.addEventListener('click', () => openViewer(items, Number(tile.dataset.index), draw));
     });
 
     section.querySelector('input[type=file]')?.addEventListener('change', async (event) => {
@@ -50,7 +78,7 @@ export async function mountGallery(section, entryId) {
       event.target.value = '';
       if (!files.length) return;
       try {
-        const n = await G.addImages(entryId, files);
+        const n = await G.addImages(entry.id, files);
         toast(`Added ${n} image${n === 1 ? '' : 's'}`, 'success');
       } catch (err) {
         toast(err.message, 'error');
@@ -81,7 +109,7 @@ export async function mountGallery(section, entryId) {
 
 // ---------------------------------------------------------------- viewer
 
-function openViewer(images, start, onChange) {
+function openViewer(items, start, onChange) {
   let index = start;
   const dialog = document.createElement('dialog');
   dialog.className = 'viewer';
@@ -100,20 +128,22 @@ function openViewer(images, start, onChange) {
   document.body.append(dialog);
   const imgEl = dialog.querySelector('.viewer-img');
   const note = dialog.querySelector('.viewer-note');
+  const deleteButton = dialog.querySelector('[data-v=delete]');
 
   async function show(i) {
-    index = (i + images.length) % images.length;
-    const img = images[index];
-    dialog.querySelector('.viewer-count').textContent = `${index + 1} / ${images.length}`;
-    dialog.querySelectorAll('.viewer-nav').forEach((b) => (b.hidden = images.length < 2));
+    index = (i + items.length) % items.length;
+    const item = items[index];
+    dialog.querySelector('.viewer-count').textContent = `${item.cover ? 'Cover · ' : ''}${index + 1} / ${items.length}`;
+    dialog.querySelectorAll('.viewer-nav').forEach((b) => (b.hidden = items.length < 2));
+    deleteButton.hidden = Boolean(item.cover); // the cover is changed via Edit, not here
     note.hidden = true;
     // Thumbnail first (instant), then the full image.
-    const thumb = await G.imageUrl(img, 'thumb');
-    if (index !== images.indexOf(img)) return;
+    const thumb = await item.url('thumb');
+    if (index !== items.indexOf(item)) return;
     imgEl.src = thumb ?? '';
     imgEl.hidden = !thumb;
-    const full = await G.imageUrl(img, 'full');
-    if (index !== images.indexOf(img)) return;
+    const full = await item.url('full');
+    if (index !== items.indexOf(item)) return;
     if (full) {
       imgEl.src = full;
       imgEl.hidden = false;
@@ -137,21 +167,22 @@ function openViewer(images, start, onChange) {
   let startX = null;
   dialog.addEventListener('pointerdown', (e) => (startX = e.clientX));
   dialog.addEventListener('pointerup', (e) => {
-    if (startX == null || images.length < 2) return;
+    if (startX == null || items.length < 2) return;
     const dx = e.clientX - startX;
     startX = null;
     if (Math.abs(dx) > 50) show(index + (dx < 0 ? 1 : -1));
   });
 
-  dialog.querySelector('[data-v=delete]').addEventListener('click', async () => {
-    if (!confirm('Delete this image from the gallery?')) return;
-    const removedEverywhere = await G.deleteImage(images[index]);
+  deleteButton.addEventListener('click', async () => {
+    const item = items[index];
+    if (!item.image || !confirm('Delete this image from the gallery?')) return;
+    const removedEverywhere = await G.deleteImage(item.image);
     toast(removedEverywhere
       ? 'Image deleted'
       : 'Image deleted from the gallery. It stays in your Cloudinary Media Library until you remove it there.', 'success', 5000);
-    images.splice(index, 1);
+    items.splice(index, 1);
     onChange();
-    if (!images.length) close();
+    if (!items.length) close();
     else show(index);
   });
 

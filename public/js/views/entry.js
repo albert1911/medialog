@@ -39,14 +39,16 @@ export async function renderEntryDetail(view, id) {
           <label class="field"><span>Status</span>
             <select id="t-status">${statusOptions(entry.status)}</select>
           </label>
-          <label class="field"><span>Progress</span>
+          <!-- A div, not a label: a label wrapping the stepper would link to the "-" button
+               (hover mirrored onto it, and clicking the text would decrease progress). -->
+          <div class="field">
+            <label class="field-label" for="t-progress">Progress (of ${entry.chapter_count > 0 ? entry.chapter_count : 'unknown'})</label>
             <div class="stepper">
-              <button type="button" class="btn btn-icon" data-step="-1" aria-label="Decrease progress">−</button>
+              <button type="button" class="btn btn-icon" data-step="-1" aria-label="Decrease progress">-</button>
               <input type="number" id="t-progress" min="0" ${entry.chapter_count > 0 ? `max="${entry.chapter_count}"` : ''} inputmode="numeric">
               <button type="button" class="btn btn-icon" data-step="1" aria-label="Increase progress">+</button>
             </div>
-            <small class="muted">of ${entry.chapter_count > 0 ? entry.chapter_count : 'unknown'}</small>
-          </label>
+          </div>
           <div class="bar"><span id="t-bar"></span></div>
           <label class="field"><span>Score (0–10)</span>
             <input type="number" id="t-score" min="0" max="10" step="any" inputmode="decimal" placeholder="—">
@@ -57,6 +59,7 @@ export async function renderEntryDetail(view, id) {
       </aside>
 
       <section class="detail-main">
+        <div class="detail-head">
         <h1 class="detail-title">${esc(entry.title)}</h1>
         <div class="chips">
           <span class="chip">${esc(entry.type)}</span>
@@ -72,12 +75,23 @@ export async function renderEntryDetail(view, id) {
               : '—'
           }</dd></div>
         </dl>
+        </div>
 
         ${entry.description ? `<p class="description">${esc(entry.description)}</p>` : ''}
 
         <div class="row">
-          <a class="btn btn-primary" href="#/entries/${entry.id}/edit">Edit</a>
-          <button type="button" class="btn btn-danger-ghost" id="delete">Delete</button>
+          <a class="btn" href="#/entries/${entry.id}/edit">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width: 16px;">
+              <path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
+            </svg>
+            Edit
+          </a>
+          <button type="button" class="btn btn-danger-ghost" id="delete">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width: 16px;">
+              <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+            </svg>
+            Delete
+          </button>
         </div>
 
         <section class="gallery" id="gallery"></section>
@@ -126,12 +140,13 @@ export async function renderEntryDetail(view, id) {
   $('#delete').addEventListener('click', async () => {
     if (!confirm(`Delete “${entry.title}” and its gallery? This can't be undone.`)) return;
     await Entries.remove(entry.id);
+    document.dispatchEvent(new CustomEvent('medialog:forget', { detail: `/entries/${entry.id}` }));
     toast('Entry deleted');
     location.hash = '#/';
   });
 
   if (entry.content) mountContent($('#content-frame'), entry.content);
-  await mountGallery($('#gallery'), entry.id);
+  await mountGallery($('#gallery'), entry);
   fill();
 }
 
@@ -234,7 +249,7 @@ export async function renderEntryForm(view, id, query) {
       </div>
 
       <div class="form-actions">
-        <a class="btn btn-ghost" href="${cancelHref}">Cancel</a>
+        <a class="btn btn-secondary" href="${cancelHref}">Cancel</a>
         <button type="submit" class="btn btn-primary">${editing ? 'Save changes' : 'Create entry'}</button>
       </div>
     </form>`;

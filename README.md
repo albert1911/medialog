@@ -105,8 +105,12 @@ Each entry can have a gallery. Gallery images are stored on [Cloudinary](https:/
 1. **Create a free Cloudinary account.** Don't add a credit card. That way, going over the free allowance can only pause images, never cost money.
 2. **Copy your cloud name** from the Cloudinary dashboard.
 3. **Create an upload preset:** *Settings (gear) → Product environment settings → Upload → Add upload preset*.
+   - **Name:** keep the random name Cloudinary generates (or make up your own random one). The preset name is what lets the app upload, so it should be unguessable; avoid names like `medialog` (see *Security* below).
    - **Signing mode:** *Unsigned*. This lets the app upload directly, without a secret key.
    - **Folder:** `medialog` (optional, keeps things tidy).
+   - **Overwrite:** off, so nobody can replace existing images through the preset.
+   - **Allowed formats:** `jpg, png, webp`.
+   - **Incoming transformation:** `c_limit,w_2048,h_2048`, so anything larger is shrunk before it's stored. The app already resizes to this size, so it doesn't affect your uploads.
    - Save, and copy the preset's **name**.
 4. **Recommended: turn on strict transformations** (*Settings → Product environment settings → Security*), then allow the one image size the app requests: `c_fill,g_center,w_320,h_320,q_80,f_jpg` (the gallery thumbnail). This stops anyone with an image link from generating endless image sizes on your account. If the thumbnail isn't allowed, the app still works: it makes thumbnails itself from the full image, using a bit more traffic.
 5. **In Medialog:** *Settings → Gallery*, enter the cloud name and preset name, then **Save**. Do this on each device you want to *add* images from. Viewing works on every synced device without it.
@@ -115,9 +119,15 @@ Each entry can have a gallery. Gallery images are stored on [Cloudinary](https:/
 - **Adding images:** open an entry → **＋ Add images** (you can pick several). Images are resized to at most 2048px and saved on the device immediately, then uploaded. Offline, they wait and upload automatically when you're back online.
 - **Other devices** download a small thumbnail when you open the gallery and the full image when you tap it. Both are then kept on the device, so viewing again uses no traffic and works offline.
 - **Viewer:** tap an image to open it full screen; use the arrows, arrow keys or swipe to move between images.
-- **Deleting** an image removes it from the gallery on every device. Cloudinary only lets a browser delete within 10 minutes of uploading; after that, the file stays in your Cloudinary *Media Library* (folder `medialog`) until you delete it there.
+- **Deleting** an image removes it from the gallery on every device. The file itself stays in your Cloudinary *Media Library* (folder `medialog`) until you delete it there. (If your preset returns a "delete token", Cloudinary also lets the app delete it automatically within 10 minutes of uploading; without one, the app just skips that step.)
 - **Leaked link?** Delete that image in Cloudinary's Media Library. The next device that can't find it flags it, and a device that still has the file re-uploads it under a new link. Your gallery heals itself and the old link stays dead.
-- **Privacy:** gallery images are public to anyone who has an image's exact link (links are long and random). Keep anything personal out of the gallery. Your cloud name and preset are stored only in each device's browser, not in the app's public code or the sync repo.
+- **Privacy:** gallery images are public to anyone who has an image's exact link (links are long and random). Keep anything personal out of the gallery.
+
+### Security
+- The app needs only the **cloud name** and an **unsigned upload preset**. Never enter your Cloudinary **API key or API secret** anywhere in the app.
+- The cloud name is not secret (it's part of every image link). The **preset name** is the only thing that allows uploading, which is why it should be random. It's stored only in your devices' browsers, never in the app's public code or the sync repo.
+- Someone who learned both names could only **upload** files to your account. They couldn't view a list of your images, change or delete them, or touch account settings. With no credit card on the account, the worst case is the free quota filling up and uploads pausing.
+- **If you suspect misuse:** delete the preset in Cloudinary, create a new one with a new random name, and enter it in *Settings → Gallery* on your devices. Existing images keep working.
 - **Backups:** Export JSON includes the gallery's links, not the images themselves (those live on Cloudinary).
 
 ## Backups
