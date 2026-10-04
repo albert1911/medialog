@@ -1,6 +1,8 @@
-// Bump VERSION whenever you change files in SHELL so clients pick up a fresh cache.
-const VERSION = 'v11';
-const CACHE = `medialog-${VERSION}`;
+// The app's version, shown in Settings → App. Whenever you change any app file, bump VERSION
+// (and set RELEASED to today) so installed copies download the new files.
+const VERSION = 12;
+const RELEASED = '2026-10-04';
+const CACHE = `medialog-v${VERSION}`;
 
 const SHELL = [
   './',
@@ -27,8 +29,17 @@ const SHELL = [
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE).then((cache) => cache.addAll(SHELL)).then(() => self.skipWaiting()),
+    caches
+      .open(CACHE)
+      // "reload" skips the browser's HTTP cache, so a new version never stores stale files.
+      .then((cache) => cache.addAll(SHELL.map((url) => new Request(url, { cache: 'reload' }))))
+      .then(() => self.skipWaiting()),
   );
+});
+
+// The page asks which version is installed.
+self.addEventListener('message', (event) => {
+  if (event.data?.type === 'version') event.ports[0]?.postMessage({ version: VERSION, released: RELEASED });
 });
 
 self.addEventListener('activate', (event) => {

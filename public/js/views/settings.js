@@ -1,9 +1,36 @@
 import { clearAll, counts, exportData, importData } from '../db.js';
-import { downloadFile, esc, fmtDateTime, formatBytes, todayISO, toast } from '../util.js';
-import { canInstall, isStandalone, promptInstall } from '../pwa.js';
+import { downloadFile, esc, fmtDate, fmtDateTime, formatBytes, todayISO, toast } from '../util.js';
+import { canInstall, checkForUpdate, getVersion, isStandalone, isUpdateReady, promptInstall } from '../pwa.js';
 import * as AutoBackup from '../autobackup.js';
 import * as Sync from '../sync.js';
 import * as G from '../gallery.js';
+
+async function drawVersion(box) {
+  const info = await getVersion();
+  const versionText = info
+    ? `Version <strong>${esc(info.version)}</strong> · released ${fmtDate(info.released)}`
+    : 'Version: not available yet (offline support is still being set up; reload to see it)';
+  box.innerHTML = isUpdateReady()
+    ? `<p>${info ? `Version <strong>${esc(info.version)}</strong> (released ${fmtDate(info.released)}) is downloaded.` : 'A new version is downloaded.'}
+         Reload to start using it.</p>
+       <button type="button" class="btn btn-small btn-primary" data-v="reload">Reload to update</button>`
+    : `<p class="muted small">${versionText}</p>
+       <button type="button" class="btn btn-small" data-v="check">Check for updates</button>`;
+  box.querySelector('[data-v=reload]')?.addEventListener('click', () => location.reload());
+  box.querySelector('[data-v=check]')?.addEventListener('click', async (event) => {
+    const button = event.target;
+    button.disabled = true;
+    button.textContent = 'Checking…';
+    try {
+      const result = await checkForUpdate();
+      if (result === 'latest') toast("You're on the latest version");
+      if (result === 'downloading') toast('Downloading a new version… you can reload when it’s ready');
+    } catch {
+      toast('Could not check for updates. Are you offline?', 'error');
+    }
+    if (box.isConnected) drawVersion(box);
+  });
+}
 
 const SYNC_GUIDE = 'https://github.com/albert1911/medialog#sync-between-devices';
 const GALLERY_GUIDE = 'https://github.com/albert1911/medialog#gallery-images-cloudinary';
@@ -179,6 +206,7 @@ export async function renderSettings(view) {
           : canInstall()
             ? '<p>Install Medialog for quick, offline access from your desktop or home screen.</p><button type="button" class="btn btn-primary" id="install">Install app</button>'
             : '<p class="muted">To install, use your browser menu (“Install app” / “Add to Home Screen”). Everything works offline after the first visit.</p>'}
+        <div class="app-version" id="app-version"></div>
       </section>
 
       <section class="panel">
@@ -248,6 +276,11 @@ export async function renderSettings(view) {
   drawGallery(galleryBox);
   const onGallery = () => (galleryBox.isConnected ? drawGallery(galleryBox) : G.status.removeEventListener('change', onGallery));
   G.status.addEventListener('change', onGallery);
+
+  const versionBox = $('#app-version');
+  drawVersion(versionBox);
+  const onUpdateReady = () => (versionBox.isConnected ? drawVersion(versionBox) : document.removeEventListener('medialog:update-ready', onUpdateReady));
+  document.addEventListener('medialog:update-ready', onUpdateReady);
 
   $('#install')?.addEventListener('click', async () => {
     await promptInstall();
