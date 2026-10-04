@@ -1,0 +1,10 @@
+{
+  "name": "medialog",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Offline-first media tracker PWA (anime, shows, movies, books, games...) backed by IndexedDB",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  }
+}
