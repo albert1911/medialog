@@ -31,7 +31,6 @@ export async function renderEntryDetail(view, id) {
 
   view.innerHTML = `
     <div class="crumbs"><a href="#/">Library</a> <span>/</span> <span>${esc(entry.type)}</span></div>
-    ${banner ? coverHTML(coverEntry, 'cover-banner') : ''}
     <div class="detail ${banner ? 'has-banner' : ''}">
       <aside class="detail-side">
         ${banner ? '' : coverHTML(coverEntry, 'cover-lg cover-natural')}
@@ -60,6 +59,7 @@ export async function renderEntryDetail(view, id) {
       </aside>
 
       <section class="detail-main">
+        ${banner ? coverHTML(coverEntry, 'cover-banner') : ''}
         <div class="detail-head">
         <h1 class="detail-title">${esc(entry.title)}</h1>
         <div class="chips">
@@ -69,7 +69,7 @@ export async function renderEntryDetail(view, id) {
 
         <dl class="facts">
           <div><dt>Release date</dt><dd>${entry.release_date ? fmtDate(entry.release_date) : '—'}</dd></div>
-          <div><dt>Chapters / Episodes</dt><dd>${entry.chapter_count > 0 ? entry.chapter_count : 'Unknown / ongoing'}</dd></div>
+          <div><dt>Chapters / Episodes</dt><dd>${entry.chapter_count > 0 ? entry.chapter_count : 'Unknown / Ongoing'}</dd></div>
           <div><dt>Source</dt><dd>${
             source
               ? `<a href="#/sources/${source.id}">${esc(source.title)}</a>${sourceUrl ? ` · <a class="nowrap" href="${esc(sourceUrl)}" target="_blank" rel="noopener noreferrer">Open ↗</a>` : ''}`
@@ -188,7 +188,7 @@ export async function renderEntryForm(view, id, query) {
   const v = existing ?? {
     status: 'planning',
     progress: 0,
-    chapter_count: 1,
+    chapter_count: '', // empty = unknown / ongoing (saved as 0)
     type: query.get('type') ?? '',
     media_source_id: query.get('source') || null,
   };
@@ -238,8 +238,8 @@ export async function renderEntryForm(view, id, query) {
               <input name="release_date" type="date" value="${esc(v.release_date)}">
             </label>
             <label class="field"><span>Chapters / Episodes</span>
-              <input name="chapter_count" type="number" min="0" step="1" inputmode="numeric" value="${esc(v.chapter_count)}">
-              <small class="muted">Use 0 if unknown or ongoing.</small>
+              <input name="chapter_count" type="number" min="0" step="1" inputmode="numeric" placeholder="0" value="${esc(v.chapter_count)}">
+              <small class="muted">Leave empty (or 0) if unknown or ongoing.</small>
             </label>
           </div>
           <label class="field"><span>Description</span>

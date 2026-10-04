@@ -35,7 +35,7 @@ The two stores mirror the original Laravel migrations:
 | `cover_aspect` | cover width ÷ height, measured on save. Picks the layout: portrait (< 0.85) fills the card; square and landscape are shown whole over a blurred copy; landscape (≥ 1.3) becomes a banner on the entry page |
 | `description` | string(255), nullable |
 | `release_date` | `YYYY-MM-DD`, nullable |
-| `chapter_count` | unsigned int, default 1 (`0` = unknown / ongoing) |
+| `chapter_count` | unsigned int, default 0 = unknown / ongoing (empty also saves as 0); the original migration defaulted to 1 |
 | `content` | raw HTML, nullable (rendered in a sandboxed iframe, so scripts never run) |
 | `media_source_id` | → `media_sources.id`, **set null on delete** |
 | `status` | `current`, `planning`, `completed`, `repeating`, `paused`, `dropped` |

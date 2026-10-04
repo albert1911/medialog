@@ -342,10 +342,15 @@ legend { font-weight: 700; padding: 0 0.35rem; }
   .filters input[type="search"] { grid-column: 1 / -1; }
 }
 
-.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 1.25rem; }
-@media (max-width: 420px) { .grid { grid-template-columns: repeat(2, 1fr); gap: 0.85rem; } }
+/* Entry cards in masonry columns (laid out by renderCards in components.js). */
+.masonry { display: flex; align-items: flex-start; column-gap: 1.25rem; }
+.masonry-col { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1.25rem; }
+@media (max-width: 420px) {
+  .masonry { column-gap: 0.85rem; }
+  .masonry-col { gap: 0.85rem; }
+}
 
-.empty-inline { grid-column: 1 / -1; padding: 2rem 0; text-align: center; }
+.empty-inline { flex: 1; padding: 2rem 0; text-align: center; }
 
 .card {
   position: relative;
@@ -423,11 +428,11 @@ legend { font-weight: 700; padding: 0 0.35rem; }
   filter: drop-shadow(0 4px 14px rgb(0 0 0 / 0.35));
 }
 
-/* Library cards: landscape 16:9 frame, since most covers are laptop screenshots.
-   Landscape covers fill it; portrait and square ones show whole over their blurred backdrop. */
-.card .cover { aspect-ratio: 16 / 9; }
-.card .cover[data-shape="landscape"] .cover-img { object-fit: cover; filter: none; }
-.card .cover[data-shape="portrait"] .cover-img { object-fit: contain; filter: drop-shadow(0 4px 14px rgb(0 0 0 / 0.35)); }
+/* Library cards (masonry): two frames, landscape 16:9 or portrait 2:3 (--card-aspect, picked
+   per cover in components.js); the cover fills its frame, so no blurred backdrop needed. */
+.card .cover { aspect-ratio: var(--card-aspect, 16 / 9); }
+.card .cover .cover-img { object-fit: cover; filter: none; }
+.card .cover .cover-backdrop { display: none; }
 
 .cover-lg { border-radius: var(--radius); box-shadow: var(--shadow); }
 /* Side-column covers keep their own proportions instead of being cropped to 2:3. */
@@ -464,10 +469,35 @@ legend { font-weight: 700; padding: 0 0.35rem; }
 .facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 0.75rem 1.5rem; margin: 1.25rem 0; }
 .facts dt { font-size: 0.78rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
 .facts dd { margin: 0.15rem 0 0; }
-.description { font-size: 1rem; max-width: 70ch; white-space: pre-line; margin-bottom: 1.25rem; }
+.description { font-size: 1rem; white-space: pre-line; margin-bottom: 1.25rem; } /* width comes from its column, up to the panel */
 .section-title { margin: 2rem 0 0.75rem; }
 .content-frame { display: block; width: 100%; min-height: 60px; border: 1px solid var(--border); background: var(--surface); }
 .timestamps { margin-top: 2rem; }
+
+/* Desktop & tablet (721px+), landscape cover: banner + details + gallery on the left, tracking panel on the right. */
+@media (min-width: 721px) {
+  .detail.has-banner { grid-template-columns: 1fr clamp(220px, 26vw, 280px); column-gap: clamp(1rem, 2.5vw, 2rem); }
+  .detail.has-banner > .detail-side { order: 1; }
+}
+
+/* Desktop & tablet (721px+), portrait/square cover (or none):
+     cover | title + facts (vertical) | tracking panel (follows scrolling)
+     description, buttons, gallery, content … spanning the first two columns below.
+   Both columns dissolve (display: contents) so their parts can be placed on one grid. The panel
+   spans many rows so it can stay in view; row-gap is 0 (spacing comes from margins) so the
+   unused rows it spans take no space. */
+@media (min-width: 721px) {
+  .detail:not(.has-banner) { grid-template-columns: clamp(150px, 19vw, 220px) 1fr clamp(220px, 26vw, 280px); column-gap: clamp(1rem, 2.5vw, 2rem); row-gap: 0; }
+  .detail:not(.has-banner) > .detail-side,
+  .detail:not(.has-banner) > .detail-main { display: contents; }
+  .detail:not(.has-banner) > .detail-side > .cover { grid-column: 1; grid-row: 1; }
+  .detail:not(.has-banner) .detail-head { grid-column: 2; grid-row: 1; min-width: 0; }
+  .detail:not(.has-banner) .detail-head .facts { grid-template-columns: 1fr; gap: 0.6rem; margin-bottom: 0; } /* facts listed vertically */
+  .detail:not(.has-banner) .track { grid-column: 3; grid-row: 1 / span 20; position: sticky; top: calc(var(--topbar-h) + 1rem); }
+  .detail:not(.has-banner) .detail-main > :not(.detail-head) { grid-column: 1 / 3; min-width: 0; margin-top: 1.25rem; margin-bottom: 0; }
+  .detail:not(.has-banner) .detail-main > :is(.gallery, .section-title, .timestamps) { margin-top: 2rem; }
+  .detail:not(.has-banner) .detail-main > .content-frame { margin-top: 0.75rem; }
+}
 
 @media (max-width: 720px) {
   .detail { grid-template-columns: 1fr; gap: 1.25rem; }

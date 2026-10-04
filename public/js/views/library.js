@@ -1,6 +1,6 @@
 import { Entries, Sources } from '../db.js';
 import { STATUSES, byText, debounce, esc } from '../util.js';
-import { bindCards, entryCard } from '../components.js';
+import { bindCards, renderCards } from '../components.js';
 
 const PREFS_KEY = 'medialog.library';
 const DEFAULTS = { status: 'all', type: '', source: '', sort: 'updated' };
@@ -67,7 +67,7 @@ export async function renderLibrary(view) {
         ${Object.entries(SORTS).map(([k, [label]]) => `<option value="${k}" ${k === prefs.sort ? 'selected' : ''}>${label}</option>`).join('')}
       </select>
     </div>
-    <div class="grid" id="grid"></div>`;
+    <div class="cards" id="grid"></div>`;
 
   const tabs = view.querySelector('#tabs');
   const grid = view.querySelector('#grid');
@@ -91,7 +91,7 @@ export async function renderLibrary(view) {
       .join('');
 
     const list = base.filter((e) => prefs.status === 'all' || e.status === prefs.status).sort(SORTS[prefs.sort][1]);
-    grid.innerHTML = list.length ? list.map(entryCard).join('') : '<p class="empty-inline muted">Nothing matches these filters.</p>';
+    renderCards(grid, list, '<p class="empty-inline muted">Nothing matches these filters.</p>');
   }
 
   tabs.addEventListener('click', (event) => {

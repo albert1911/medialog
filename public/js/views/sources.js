@@ -1,7 +1,7 @@
 import { Entries, Sources, ValidationError } from '../db.js';
 import { byText, debounce, esc, fmtDateTime, safeHref, toast } from '../util.js';
 import {
-  bindCards, bindChoiceFields, charCounter, choiceFieldHTML, entryCard, markInvalid, renderNotFound,
+  bindCards, bindChoiceFields, charCounter, choiceFieldHTML, markInvalid, renderCards, renderNotFound,
 } from '../components.js';
 
 // ---------------------------------------------------------------- index
@@ -103,16 +103,14 @@ export async function renderSourceDetail(view, id) {
       <h2>Entries <span class="muted" id="count"></span></h2>
       <a class="btn btn-small btn-primary" href="#/entries/new?source=${source.id}">+ Add entry from this source</a>
     </div>
-    <div class="grid" id="grid"></div>
+    <div class="cards" id="grid"></div>
     <p class="muted small timestamps">Added ${fmtDateTime(source.created_at)} · Updated ${fmtDateTime(source.updated_at)}</p>`;
 
   const grid = view.querySelector('#grid');
   const draw = () => {
     entries.sort((a, b) => byText(a.title, b.title));
     view.querySelector('#count').textContent = `(${entries.length})`;
-    grid.innerHTML = entries.length
-      ? entries.map(entryCard).join('')
-      : '<p class="empty-inline muted">No entries come from this source yet.</p>';
+    renderCards(grid, entries, '<p class="empty-inline muted">No entries come from this source yet.</p>');
   };
   bindCards(grid, async () => {
     entries = await Entries.bySource(source.id);

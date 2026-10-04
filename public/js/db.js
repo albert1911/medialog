@@ -1,7 +1,7 @@
 // IndexedDB storage layer. Mirrors the original Laravel tables:
 //   media_sources: id, title(100), category(50), description(255)?, link(255)?, timestamps
 //   media_entries: id, title(100), type(50), cover_image?, description(255)?, release_date?,
-//                  chapter_count (default 1), content (raw html)?, media_source_id? -> media_sources
+//                  chapter_count (default 0 = unknown / ongoing), content (raw html)?, media_source_id? -> media_sources
 //                  (on delete: set null), timestamps
 // plus cover_aspect (cover width / height, used to lay out portrait vs landscape covers)
 //
@@ -241,7 +241,7 @@ function normalizeSource(data) {
 }
 
 function normalizeEntry(data) {
-  const chapter_count = uint(data, 'chapter_count', { label: 'Chapter count', fallback: 1 });
+  const chapter_count = uint(data, 'chapter_count', { label: 'Chapter count', fallback: 0 });
   let progress = uint(data, 'progress', { label: 'Progress', fallback: 0 });
   if (chapter_count > 0) progress = Math.min(progress, chapter_count);
 
