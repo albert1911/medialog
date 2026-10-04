@@ -35,7 +35,7 @@ export async function renderEntryDetail(view, id) {
     <div class="detail ${banner ? 'has-banner' : ''}">
       <aside class="detail-side">
         ${banner ? '' : coverHTML(coverEntry, 'cover-lg cover-natural')}
-        <form class="panel track" id="track" onsubmit="return false">
+        <form class="panel track" id="track">
           <label class="field"><span>Status</span>
             <select id="t-status">${statusOptions(entry.status)}</select>
           </label>
@@ -55,6 +55,7 @@ export async function renderEntryDetail(view, id) {
           </label>
           <label class="field"><span>Started</span><input type="date" id="t-started"></label>
           <label class="field"><span>Completed</span><input type="date" id="t-completed"></label>
+          <p class="track-status small" id="track-status" aria-live="polite"></p>
         </form>
       </aside>
 
@@ -117,16 +118,41 @@ export async function renderEntryDetail(view, id) {
     $('#updated-at').textContent = fmtDateTime(entry.updated_at);
   }
 
+  // Save feedback under the tracking panel: every change saves on its own, this says when.
+  const statusLine = $('#track-status');
+  let fadeTimer;
+  function showStatus(text, kind = '') {
+    clearTimeout(fadeTimer);
+    statusLine.textContent = text;
+    statusLine.className = `track-status small ${kind}`;
+    if (kind === 'ok') fadeTimer = setTimeout(() => statusLine.classList.add('faded'), 2500);
+  }
+
   async function update(changes) {
     const before = entry.status;
+    showStatus('Saving…');
     try {
       entry = await Entries.update(entry.id, changes);
+      showStatus('✓ Saved', 'ok');
       if (entry.status !== before && !('status' in changes)) toast(`Moved to ${statusLabel(entry.status)}`, 'success');
     } catch (err) {
-      toast(err.message, 'error');
+      showStatus(`Not saved: ${err.message}`, 'error'); // fill() below puts back the saved value
     }
     fill();
   }
+
+  // Number fields save when you leave them or press Enter; say so while they're being edited.
+  const savedValue = { 't-progress': () => String(entry.progress), 't-score': () => String(entry.score ?? '') };
+  for (const id of Object.keys(savedValue)) {
+    $(`#${id}`).addEventListener('input', (e) => {
+      if (e.target.value !== savedValue[id]()) showStatus('Not saved yet. Press Enter or leave the field.', 'pending');
+    });
+  }
+  // Enter commits the field being edited (blurring it fires its "change" → save).
+  $('#track').addEventListener('submit', (e) => {
+    e.preventDefault();
+    document.activeElement?.blur();
+  });
 
   $('#t-status').addEventListener('change', (e) => update({ status: e.target.value }));
   $('#t-progress').addEventListener('change', (e) => update({ progress: e.target.value }));
