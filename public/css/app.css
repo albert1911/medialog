@@ -277,7 +277,7 @@ option { background: var(--surface); color: var(--text); }
 
 .field { display: flex; flex-direction: column; gap: 0.3rem; min-width: 0; }
 .field > span, .field-label, .field-head label { font-size: 0.85rem; font-weight: 600; color: var(--muted); }
-.field-head { display: flex; align-items: center; justify-content: space-between; }
+.field-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: .25rem;; }
 .field-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; }
 .counter { align-self: flex-end; }
 
