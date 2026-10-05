@@ -353,10 +353,15 @@ legend { font-weight: 700; padding: 0 0.35rem; }
 
 .empty-inline { grid-column: 1 / -1; padding: 2rem 0; text-align: center; }
 
+/* Each card takes 4 rows of the grid (cover, title, info, progress) through subgrid, so these
+   rows are shared by all cards side by side: if one title wraps to 2 lines, the info and
+   progress lines of its neighbours move down too and everything stays lined up. */
 .card {
   position: relative;
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-rows: subgrid;
+  grid-row: span 4;
+  row-gap: 0;
   background: var(--surface);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
@@ -366,7 +371,7 @@ legend { font-weight: 700; padding: 0 0.35rem; }
 .card:hover { transform: translateY(-2px); }
 .card-link { position: absolute; inset: 0; z-index: 1; }
 .card .badge { position: absolute; top: 0.5rem; left: 0.5rem; }
-.card-body { display: flex; flex-direction: column; gap: 0.35rem; padding: 0.6rem 0.7rem 0.7rem; }
+.card-body { display: grid; grid-template-rows: subgrid; grid-row: span 3; row-gap: 0.35rem; padding: 0.6rem 0.7rem 0.7rem; align-items: start; }
 .card-title {
   font-size: 0.92rem;
   font-weight: 650;
