@@ -425,15 +425,19 @@ function normalizeGalleryImage(data) {
     height: intOrNull(data.height),
     pending: Boolean(data.pending), // added on a device but not uploaded to Cloudinary yet
     missing: Boolean(data.missing), // a device found it gone from Cloudinary; one with the file re-uploads it
+    position: Number.isFinite(data.position) ? data.position : null, // gallery order (see galleryKey)
   };
 }
 
-const byCreated = (a, b) => a.created_at.localeCompare(b.created_at);
+// Gallery order: by position; images without one (older records) fall back to when they were
+// added. Reordering gives only the moved image a new position, between its new neighbours.
+export const galleryKey = (image) => image.position ?? Date.parse(image.created_at);
+const byGalleryOrder = (a, b) => galleryKey(a) - galleryKey(b);
 
 export const Gallery = {
   byEntry(entryId) {
     return withTx([GALLERY], 'readonly', (tx) =>
-      wrap(tx.objectStore(GALLERY).index('entry_id').getAll(String(entryId))).then((rows) => rows.filter(live).sort(byCreated)),
+      wrap(tx.objectStore(GALLERY).index('entry_id').getAll(String(entryId))).then((rows) => rows.filter(live).sort(byGalleryOrder)),
     );
   },
 
@@ -447,7 +451,7 @@ export const Gallery = {
 
   async add(fields) {
     const now = new Date().toISOString();
-    const record = { id: newId(), ...normalizeGalleryImage(fields), created_at: now, updated_at: now };
+    const record = { id: newId(), ...normalizeGalleryImage({ position: Date.now(), ...fields }), created_at: now, updated_at: now };
     await withTx([GALLERY], 'readwrite', (tx) => wrap(tx.objectStore(GALLERY).put(record)));
     return record;
   },
@@ -461,6 +465,27 @@ export const Gallery = {
       await wrap(store.put(record));
       return record;
     });
+  },
+
+  // Saves a new order. `orderedIds`: the entry's images in their new order; `movedId`: the one
+  // that moved. Normally only that image changes (one small synced record). If there's no room
+  // left between its neighbours' positions, the whole gallery is renumbered.
+  async move(orderedIds, movedId) {
+    const images = new Map((await this.all()).map((g) => [g.id, g]));
+    const keys = orderedIds.map((id) => galleryKey(images.get(id)));
+    const i = orderedIds.indexOf(movedId);
+    const before = keys[i - 1];
+    const after = keys[i + 1];
+    let position;
+    if (before != null && after != null) position = (before + after) / 2;
+    else if (before != null) position = before + 1000;
+    else if (after != null) position = after - 1000;
+    else return;
+    if ((before != null && position <= before) || (after != null && position >= after)) {
+      for (const [n, id] of orderedIds.entries()) await this.update(id, { position: (n + 1) * 1000 });
+      return;
+    }
+    await this.update(movedId, { position });
   },
 
   remove(id) {

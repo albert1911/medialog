@@ -641,6 +641,26 @@ legend { font-weight: 700; padding: 0 0.35rem; }
   font-weight: 600;
 }
 
+/* Reorder mode */
+.reorder-hint { margin: -0.25rem 0 0.6rem; }
+.reordering .gallery-tile[data-image] { cursor: grab; touch-action: none; user-select: none; }
+.reordering .gallery-tile:not([data-image]) { opacity: 0.55; cursor: default; } /* the cover stays first */
+.reordering .gallery-tile:hover img { transform: none; }
+.gallery-tile.dragging { opacity: 0.6; outline: 2px dashed var(--accent); outline-offset: 2px; cursor: grabbing; }
+.move-buttons { position: absolute; top: 0.3rem; right: 0.3rem; display: flex; gap: 0.25rem; }
+.move-btn {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background: rgb(0 0 0 / 0.6);
+  color: #fff;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+.move-btn:hover, .move-btn:focus-visible { background: var(--accent); color: var(--accent-ink); outline: none; }
+
 .viewer {
   width: 100vw;
   height: 100dvh;
