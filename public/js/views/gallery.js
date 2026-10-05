@@ -322,6 +322,10 @@ function openViewer(items, start, onChange) {
   let gesture = null; // what the current touch is doing
   let lastTap = null; // for double-tap
   let suppressClick = false; // a drag/pinch ending on the backdrop must not close the viewer
+  // Where the press started. Once the viewer captures the pointer (so drags keep working),
+  // the browser reports the resulting click on the viewer itself, so e.target can't tell
+  // the image and the dark backdrop apart; this can.
+  let pressedOn = null; // 'image' | 'backdrop' | null
 
   const distance = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
   const midpoint = (a, b) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
@@ -338,6 +342,7 @@ function openViewer(items, start, onChange) {
   }
 
   dialog.addEventListener('pointerdown', (e) => {
+    pressedOn = e.target === imgEl ? 'image' : e.target === dialog ? 'backdrop' : null;
     if (e.target.closest('button') || e.button > 0) return; // nav / bar buttons work normally
     pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
     dialog.setPointerCapture?.(e.pointerId);
@@ -386,7 +391,15 @@ function openViewer(items, start, onChange) {
       }
       return;
     }
-    // a tap: double-tap toggles zoom
+    // Mouse: a click on the image zooms in on that spot; another click zooms back out.
+    if (e.pointerType === 'mouse') {
+      if (pressedOn !== 'image' || imgEl.hidden) return;
+      suppressClick = true;
+      if (zoom > 1) setZoom(1, 0, 0, true);
+      else zoomAround(DOUBLE_TAP_ZOOM, e.clientX, e.clientY, true);
+      return;
+    }
+    // Touch: double-tap toggles zoom (a single tap shouldn't zoom by accident).
     const now = Date.now();
     if (lastTap && now - lastTap.time < 300 && Math.hypot(e.clientX - lastTap.x, e.clientY - lastTap.y) < 30 && !imgEl.hidden) {
       lastTap = null;
@@ -414,7 +427,7 @@ function openViewer(items, start, onChange) {
   dialog.querySelector('[data-v=close]').addEventListener('click', close);
   dialog.addEventListener('click', (e) => {
     // a click on the backdrop closes the viewer, unless it ended a drag, pinch or double-tap
-    if (e.target === dialog && !suppressClick && zoom === 1) close();
+    if (pressedOn === 'backdrop' && !suppressClick && zoom === 1) close();
     suppressClick = false;
   });
   dialog.addEventListener('keydown', (e) => {
