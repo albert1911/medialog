@@ -687,10 +687,8 @@ legend { font-weight: 700; padding: 0 0.35rem; }
   transition: opacity 0.15s;
 }
 .viewer-img.switching { opacity: 0.25; } /* the previous image, dimmed while the next one gets ready */
-.viewer-img { transform-origin: center; cursor: zoom-in; }
+.viewer-img { transform-origin: center; }
 .viewer-img.animating { transition: transform 0.2s ease-out, opacity 0.15s; } /* double-tap zoom in/out */
-.viewer.zoomed .viewer-img { cursor: grab; }
-.viewer.zoomed .viewer-img:active { cursor: grabbing; }
 .viewer-spinner {
   position: absolute;
   top: 50%;

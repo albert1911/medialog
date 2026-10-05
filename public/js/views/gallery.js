@@ -285,7 +285,8 @@ function openViewer(items, start, onChange) {
     }
   }
 
-  // ---- zoom: pinch, double-tap, drag to look around, mouse wheel
+  // ---- zoom (touch screens only): pinch, double-tap, drag to look around. With a mouse the
+  //      viewer just shows the image: no zooming, a click on the backdrop closes it.
   const MAX_ZOOM = 4;
   const DOUBLE_TAP_ZOOM = 2.5;
   let zoom = 1;
@@ -391,14 +392,7 @@ function openViewer(items, start, onChange) {
       }
       return;
     }
-    // Mouse: a click on the image zooms in on that spot; another click zooms back out.
-    if (e.pointerType === 'mouse') {
-      if (pressedOn !== 'image' || imgEl.hidden) return;
-      suppressClick = true;
-      if (zoom > 1) setZoom(1, 0, 0, true);
-      else zoomAround(DOUBLE_TAP_ZOOM, e.clientX, e.clientY, true);
-      return;
-    }
+    if (e.pointerType === 'mouse') return; // no zooming with a mouse
     // Touch: double-tap toggles zoom (a single tap shouldn't zoom by accident).
     const now = Date.now();
     if (lastTap && now - lastTap.time < 300 && Math.hypot(e.clientX - lastTap.x, e.clientY - lastTap.y) < 30 && !imgEl.hidden) {
@@ -412,13 +406,6 @@ function openViewer(items, start, onChange) {
   }
   dialog.addEventListener('pointerup', endPointer);
   dialog.addEventListener('pointercancel', endPointer);
-
-  // Mouse wheel / trackpad pinch on desktop.
-  dialog.addEventListener('wheel', (e) => {
-    if (imgEl.hidden) return;
-    e.preventDefault();
-    zoomAround(zoom * Math.exp(-e.deltaY * 0.0015), e.clientX, e.clientY);
-  }, { passive: false });
 
   const close = () => dialog.close();
   dialog.addEventListener('close', () => dialog.remove());
