@@ -2,7 +2,7 @@
 // (and set RELEASED to today) so installed copies download the new files:
 //   new feature / behavior change → next whole number ('23.4' → '24')
 //   small UI adjustment            → +.1             ('23' → '23.1' → … → '23.9' → '23.10')
-const VERSION = '28.1';
+const VERSION = '29';
 const RELEASED = '2026-10-05';
 const CACHE = `medialog-v${VERSION}`;
 
