@@ -9,14 +9,19 @@ const sync = () => document.body.classList.toggle('can-install', !!deferredPromp
 
 export function initPWA() {
   if ('serviceWorker' in navigator) {
-    // A page that was already controlled before means any later takeover is an update
-    // (on the very first visit, the first takeover is just the initial install).
-    const hadController = Boolean(navigator.serviceWorker.controller);
-    navigator.serviceWorker.addEventListener('controllerchange', () => {
-      if (hadController && !updateReady) {
-        updateReady = true;
-        showUpdateBar();
-      }
+    // When a new version takes over the page, offer a reload — unless this is the very first
+    // visit, where the first takeover is just the initial install. "Not the first visit" means
+    // the app's offline copy already existed when this page loaded. That's checked directly,
+    // not via "the page was using it": a hard reload (Ctrl+Shift+R, or DevTools bypassing the
+    // service worker) loads the page without it, and those tabs still need the reload prompt
+    // for later updates.
+    const existedAtLoad = navigator.serviceWorker.controller
+      ? Promise.resolve(true)
+      : navigator.serviceWorker.getRegistration().then((r) => Boolean(r?.active)).catch(() => false);
+    navigator.serviceWorker.addEventListener('controllerchange', async () => {
+      if (updateReady || !(await existedAtLoad)) return;
+      updateReady = true;
+      showUpdateBar();
     });
 
     window.addEventListener('load', () => {
