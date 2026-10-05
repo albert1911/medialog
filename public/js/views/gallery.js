@@ -216,7 +216,8 @@ function openViewer(items, start, onChange) {
   const dialog = document.createElement('dialog');
   dialog.className = 'viewer';
   dialog.innerHTML = `
-    <img class="viewer-img" alt="">
+    <img class="viewer-img" alt="" draggable="false">
+    <span class="viewer-spinner" aria-hidden="true" hidden></span>
     <p class="viewer-note" hidden>This image isn't available on this device yet.</p>
     <button type="button" class="viewer-nav prev" aria-label="Previous image">‹</button>
     <button type="button" class="viewer-nav next" aria-label="Next image">›</button>
@@ -232,6 +233,26 @@ function openViewer(items, start, onChange) {
   const note = dialog.querySelector('.viewer-note');
   const deleteButton = dialog.querySelector('[data-v=delete]');
 
+  const spinner = dialog.querySelector('.viewer-spinner');
+
+  // Full images, downloaded (if needed) and decoded ahead of time, so they appear in one step.
+  // The square grid thumbnail is never shown here: it's cropped, so it looked like a zoomed-in
+  // flash before the real image. Keyed by item; kept while the viewer is open.
+  const prepared = new Map(); // item -> Promise<url | null>
+  function prepare(item) {
+    if (!prepared.has(item)) {
+      prepared.set(item, (async () => {
+        const url = await item.url('full');
+        if (!url) return null;
+        const img = new Image();
+        img.src = url;
+        try { await img.decode(); } catch { return null; } // damaged or unreadable file
+        return url;
+      })());
+    }
+    return prepared.get(item);
+  }
+
   async function show(i) {
     index = (i + items.length) % items.length;
     const item = items[index];
@@ -239,18 +260,27 @@ function openViewer(items, start, onChange) {
     dialog.querySelectorAll('.viewer-nav').forEach((b) => (b.hidden = items.length < 2));
     deleteButton.hidden = Boolean(item.cover); // the cover is changed via Edit, not here
     note.hidden = true;
-    // Thumbnail first (instant), then the full image.
-    const thumb = await item.url('thumb');
-    if (index !== items.indexOf(item)) return;
-    imgEl.src = thumb ?? '';
-    imgEl.hidden = !thumb;
-    const full = await item.url('full');
-    if (index !== items.indexOf(item)) return;
-    if (full) {
-      imgEl.src = full;
+
+    // Dim the previous image right away; show a spinner only if preparing takes a moment.
+    imgEl.classList.add('switching');
+    const spinnerTimer = setTimeout(() => (spinner.hidden = false), 150);
+    const url = await prepare(item);
+    clearTimeout(spinnerTimer);
+    if (index !== items.indexOf(item)) return; // swiped on meanwhile
+    spinner.hidden = true;
+    if (url) {
+      imgEl.src = url;
       imgEl.hidden = false;
-    } else if (!thumb) {
+      imgEl.classList.remove('switching');
+    } else {
+      imgEl.hidden = true;
       note.hidden = false;
+    }
+
+    // Get the neighbours ready, so the next swipe is instant.
+    if (items.length > 1) {
+      prepare(items[(index + 1) % items.length]);
+      prepare(items[(index - 1 + items.length) % items.length]);
     }
   }
 

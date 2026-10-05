@@ -684,7 +684,22 @@ legend { font-weight: 700; padding: 0 0.35rem; }
   border-radius: 6px;
   user-select: none;
   -webkit-user-drag: none;
+  transition: opacity 0.15s;
 }
+.viewer-img.switching { opacity: 0.25; } /* the previous image, dimmed while the next one gets ready */
+.viewer-spinner {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 36px;
+  height: 36px;
+  margin: -18px 0 0 -18px;
+  border: 3px solid rgb(255 255 255 / 0.25);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: viewer-spin 0.8s linear infinite;
+}
+@keyframes viewer-spin { to { rotate: 360deg; } }
 .viewer-note { color: #ccd; }
 .viewer-nav {
   position: absolute;
