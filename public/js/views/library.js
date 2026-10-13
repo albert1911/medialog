@@ -1,9 +1,9 @@
 import { Entries, Sources } from '../db.js';
-import { STATUSES, byText, debounce, esc } from '../util.js';
+import { STATUSES, byText, debounce, esc, sameTag, tagList, tagsOf } from '../util.js';
 import { bindCards, renderCards } from '../components.js';
 
 const PREFS_KEY = 'medialog.library';
-const DEFAULTS = { status: 'all', type: '', source: '', sort: 'updated' };
+const DEFAULTS = { status: 'all', type: '', source: '', tag: '', sort: 'updated' };
 
 const SORTS = {
   updated: ['Recently updated', (a, b) => b.updated_at.localeCompare(a.updated_at)],
@@ -25,6 +25,11 @@ function savePrefs(prefs) {
   try { localStorage.setItem(PREFS_KEY, JSON.stringify(prefs)); } catch { /* ignore */ }
 }
 
+// Opens the library on every entry with this tag (used by the tag links on an entry's page).
+export function showTagInLibrary(tag) {
+  savePrefs({ ...loadPrefs(), status: 'all', type: '', source: '', tag });
+}
+
 export async function renderLibrary(view) {
   let [entries, sources] = await Promise.all([Entries.all(), Sources.all()]);
 
@@ -42,7 +47,9 @@ export async function renderLibrary(view) {
   const prefs = loadPrefs();
   const types = [...new Set(entries.map((e) => e.type))].sort(byText);
   const sortedSources = [...sources].sort((a, b) => byText(a.title, b.title));
+  const tags = tagList(entries);
   if (!types.includes(prefs.type)) prefs.type = '';
+  prefs.tag = tags.find((t) => sameTag(t, prefs.tag)) ?? '';
   if (!sources.some((s) => String(s.id) === prefs.source)) prefs.source = '';
   if (!SORTS[prefs.sort]) prefs.sort = 'updated';
   let query = '';
@@ -54,11 +61,15 @@ export async function renderLibrary(view) {
     </div>
     <div class="tabs" id="tabs" role="toolbar" aria-label="Filter by status"></div>
     <div class="filters">
-      <input type="search" id="f-q" placeholder="Search titles…" aria-label="Search">
+      <input type="search" id="f-q" placeholder="Search titles and tags…" aria-label="Search">
       <select id="f-type" aria-label="Type">
         <option value="">All types</option>
         ${types.map((t) => `<option ${t === prefs.type ? 'selected' : ''}>${esc(t)}</option>`).join('')}
       </select>
+      ${tags.length ? `<select id="f-tag" aria-label="Tag">
+        <option value="">All tags</option>
+        ${tags.map((t) => `<option ${t === prefs.tag ? 'selected' : ''}>${esc(t)}</option>`).join('')}
+      </select>` : ''}
       <select id="f-source" aria-label="Source">
         <option value="">All sources</option>
         ${sortedSources.map((s) => `<option value="${s.id}" ${String(s.id) === prefs.source ? 'selected' : ''}>${esc(s.title)}</option>`).join('')}
@@ -78,7 +89,9 @@ export async function renderLibrary(view) {
       (e) =>
         (!prefs.type || e.type === prefs.type) &&
         (!prefs.source || String(e.media_source_id) === prefs.source) &&
-        (!needle || e.title.toLowerCase().includes(needle) || (e.description ?? '').toLowerCase().includes(needle)),
+        (!prefs.tag || tagsOf(e).some((t) => sameTag(t, prefs.tag))) &&
+        (!needle || e.title.toLowerCase().includes(needle) || (e.description ?? '').toLowerCase().includes(needle) ||
+          tagsOf(e).some((t) => t.toLowerCase().includes(needle))),
     );
 
     const count = { all: base.length };
@@ -107,8 +120,8 @@ export async function renderLibrary(view) {
     draw();
   }, 120));
 
-  for (const [selector, key] of [['#f-type', 'type'], ['#f-source', 'source'], ['#f-sort', 'sort']]) {
-    view.querySelector(selector).addEventListener('change', (event) => {
+  for (const [selector, key] of [['#f-type', 'type'], ['#f-tag', 'tag'], ['#f-source', 'source'], ['#f-sort', 'sort']]) {
+    view.querySelector(selector)?.addEventListener('change', (event) => {
       prefs[key] = event.target.value;
       savePrefs(prefs);
       draw();

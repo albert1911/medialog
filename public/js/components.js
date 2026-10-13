@@ -1,5 +1,5 @@
 import { Covers, Entries, coverIdOf, isCoverRef } from './db.js';
-import { esc, safeImg, statusLabel, toast } from './util.js';
+import { esc, safeImg, sameTag, statusLabel, toast } from './util.js';
 
 // portrait (< 0.85), square (0.85–1.3), landscape (>= 1.3).
 // Library cards have a landscape 16:9 frame: landscape covers fill it, portrait and square ones
@@ -234,6 +234,79 @@ export function bindChoiceFields(root) {
       useText(false);
     });
   });
+}
+
+// Tags: chips plus a text box. Enter or a comma adds what's typed (also picking a suggestion),
+// Backspace in the empty box removes the last tag. The text box carries name="tags" only so
+// validation errors can point at it; read the value with the getter bindTagField returns.
+export function tagFieldHTML({ value, options }) {
+  return `<div class="field" data-tags>
+    <label class="field-label" for="tag-input">Tags</label>
+    <div class="tag-box">
+      <span class="tag-chips" data-initial="${esc(JSON.stringify(value ?? []))}" data-options="${esc(JSON.stringify(options))}"></span>
+      <input id="tag-input" name="tags" list="tag-options" maxlength="50" placeholder="Add a tag…" autocomplete="off" enterkeyhint="enter">
+    </div>
+    <datalist id="tag-options"></datalist>
+    <small class="muted">Press Enter or comma after each tag.</small>
+  </div>`;
+}
+
+export function bindTagField(root) {
+  const box = root.querySelector('[data-tags]');
+  const chips = box.querySelector('.tag-chips');
+  const input = box.querySelector('input');
+  const datalist = box.querySelector('datalist');
+  const options = JSON.parse(chips.dataset.options);
+  let tags = JSON.parse(chips.dataset.initial);
+
+  const draw = () => {
+    chips.innerHTML = tags.map((t, i) => `<span class="chip tag">${esc(t)}<button type="button" class="chip-remove" data-remove="${i}" aria-label="Remove tag ${esc(t)}">×</button></span>`).join('');
+    datalist.innerHTML = options.filter((o) => !tags.some((t) => sameTag(t, o))).map((o) => `<option value="${esc(o)}">`).join('');
+  };
+  // Typed text becomes tags (several at once if it has commas); an existing tag keeps its spelling.
+  const commit = () => {
+    for (const part of input.value.split(',')) {
+      const typed = part.trim().replace(/\s+/g, ' ');
+      if (!typed || tags.some((t) => sameTag(t, typed))) continue;
+      tags.push(options.find((o) => sameTag(o, typed)) ?? typed);
+    }
+    input.value = '';
+    input.removeAttribute('aria-invalid');
+    draw();
+  };
+
+  input.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter' && input.value.trim()) {
+      event.preventDefault(); // add the tag instead of submitting the form
+      commit();
+    } else if (event.key === 'Backspace' && !input.value && tags.length) {
+      tags.pop();
+      draw();
+    }
+  });
+  input.addEventListener('input', (event) => {
+    // A comma (typed or pasted), or a suggestion picked from the list (not typed key by key).
+    const picked = (event.inputType ?? 'insertReplacementText') === 'insertReplacementText'
+      && options.some((o) => sameTag(o, input.value.trim()));
+    if (input.value.includes(',') || picked) commit();
+  });
+  chips.addEventListener('click', (event) => {
+    const button = event.target.closest('[data-remove]');
+    if (!button) return;
+    tags.splice(Number(button.dataset.remove), 1);
+    draw();
+    input.focus();
+  });
+  box.querySelector('.tag-box').addEventListener('click', (event) => {
+    if (event.target === event.currentTarget) input.focus();
+  });
+  draw();
+
+  // Current tags, including anything typed but not yet added.
+  return () => {
+    commit();
+    return [...tags];
+  };
 }
 
 export function charCounter(input) {

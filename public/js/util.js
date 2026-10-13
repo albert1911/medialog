@@ -14,6 +14,15 @@ export const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ESC
 
 export const byText = (a, b) => a.localeCompare(b, undefined, { sensitivity: 'base', numeric: true });
 
+// Tags compare case-insensitively ("Isekai" = "isekai"); entries saved before tags existed have none.
+export const tagsOf = (entry) => entry.tags ?? [];
+export const sameTag = (a, b) => a.toLowerCase() === b.toLowerCase();
+export function tagList(entries) {
+  const seen = new Map();
+  for (const tag of entries.flatMap(tagsOf)) if (!seen.has(tag.toLowerCase())) seen.set(tag.toLowerCase(), tag);
+  return [...seen.values()].sort(byText);
+}
+
 export function todayISO() {
   const d = new Date();
   return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);

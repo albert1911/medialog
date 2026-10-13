@@ -1,0 +1,1 @@
+- add framework to edit raw html not on a plain text area

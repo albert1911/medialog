@@ -2,12 +2,13 @@ import { Covers, Entries, Sources, ValidationError, isCoverRef } from '../db.js'
 import { mountGallery } from './gallery.js';
 import {
   STATUSES, byText, debounce, esc, fmtDate, fmtDateTime,
-  imageToBlob, probeAspect, safeHref, safeImg, statusLabel, toast,
+  imageToBlob, probeAspect, safeHref, safeImg, statusLabel, tagList, tagsOf, toast,
 } from '../util.js';
 import {
-  bindChoiceFields, charCounter, choiceFieldHTML, coverHTML, coverShape, markInvalid, mountContent,
-  progressPct, renderNotFound,
+  bindChoiceFields, bindTagField, charCounter, choiceFieldHTML, coverHTML, coverShape, markInvalid, mountContent,
+  progressPct, renderNotFound, tagFieldHTML,
 } from '../components.js';
+import { showTagInLibrary } from './library.js';
 
 const statusOptions = (selected) =>
   STATUSES.map((s) => `<option value="${s.value}" ${s.value === selected ? 'selected' : ''}>${s.label}</option>`).join('');
@@ -66,6 +67,7 @@ export async function renderEntryDetail(view, id) {
           <span class="chip">${esc(entry.type)}</span>
           <span class="badge status-${entry.status}" id="status-badge">${statusLabel(entry.status)}</span>
         </div>
+        ${tagsOf(entry).length ? `<div class="chips tags" aria-label="Tags">${tagsOf(entry).map((t) => `<a class="chip tag" href="#/" data-tag="${esc(t)}" title="Show entries tagged ${esc(t)}">#${esc(t)}</a>`).join('')}</div>` : ''}
 
         <dl class="facts">
           <div><dt>Release date</dt><dd>${entry.release_date ? fmtDate(entry.release_date) : '—'}</dd></div>
@@ -163,6 +165,10 @@ export async function renderEntryDetail(view, id) {
     button.addEventListener('click', () => update({ progress: Math.max(0, entry.progress + Number(button.dataset.step)) })),
   );
 
+  view.querySelectorAll('[data-tag]').forEach((link) =>
+    link.addEventListener('click', () => showTagInLibrary(link.dataset.tag)),
+  );
+
   $('#delete').addEventListener('click', async () => {
     if (!confirm(`Delete “${entry.title}” and its gallery? This can't be undone.`)) return;
     await Entries.remove(entry.id);
@@ -185,6 +191,7 @@ export async function renderEntryForm(view, id, query) {
 
   const [sources, entries] = await Promise.all([Sources.all(), Entries.all()]);
   const types = [...new Set(entries.map((e) => e.type))].sort(byText);
+  const tags = tagList(entries);
   const v = existing ?? {
     status: 'planning',
     progress: 0,
@@ -233,6 +240,7 @@ export async function renderEntryForm(view, id, query) {
               <small class="muted">Optional: the game or work this story comes from. <a href="#/sources/new">+ New source</a></small>
             </label>
           </div>
+          ${tagFieldHTML({ value: tagsOf(v), options: tags })}
           <div class="field-row">
             <label class="field"><span>Release date</span>
               <input name="release_date" type="date" value="${esc(v.release_date)}">
@@ -354,10 +362,12 @@ export async function renderEntryForm(view, id, query) {
 
   charCounter(form.elements.description);
   bindChoiceFields(form);
+  const getTags = bindTagField(form);
 
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
     const data = Object.fromEntries(new FormData(form));
+    data.tags = getTags();
     try {
       if (pendingBlob) {
         uploaded = await Covers.add(pendingBlob);

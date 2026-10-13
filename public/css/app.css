@@ -285,6 +285,29 @@ option { background: var(--surface); color: var(--text); }
 .field-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; }
 .counter { align-self: flex-end; }
 
+/* Tags: chips and a borderless text box inside one input-like box */
+.tag-box {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 38px;
+  padding: 0.25rem 0.4rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-2);
+  cursor: text;
+}
+.tag-box:focus-within { outline: 2px solid var(--accent); outline-offset: 1px; }
+.tag-box:has([aria-invalid="true"]) { border-color: var(--danger); outline-color: var(--danger); }
+.tag-chips { display: contents; }
+.tag-box input { flex: 1; min-width: 8rem; width: auto; min-height: 28px; padding: 0.1rem 0.25rem; border: 0; background: transparent; }
+.tag-box input:focus { outline: none; }
+.chip.tag { display: inline-flex; align-items: center; gap: 0.2rem; color: var(--text); }
+a.chip.tag:hover { border-color: var(--accent); color: var(--accent); text-decoration: none; }
+.chip-remove { padding: 0 0.1rem; border: 0; background: none; color: var(--muted); font: inherit; font-size: 1rem; line-height: 1; cursor: pointer; }
+.chip-remove:hover { color: var(--danger); }
+
 fieldset { margin: 0; min-width: 0; }
 fieldset.panel { display: flex; flex-direction: column; gap: 1rem; box-shadow: none; }
 legend { font-weight: 700; padding: 0 0.35rem; }
@@ -341,9 +364,10 @@ legend { font-weight: 700; padding: 0 0.35rem; }
 .tab .count { font-size: 0.75rem; color: var(--muted); background: var(--surface-2); padding: 0 0.4rem; border-radius: 999px; }
 
 .filters { display: grid; grid-template-columns: 2fr repeat(3, 1fr); gap: 0.6rem; margin-bottom: 1.5rem; }
+.filters:has(#f-tag) { grid-template-columns: 2fr repeat(4, 1fr); }
 .filters:has(#s-q) { grid-template-columns: 2fr 1fr; }
 @media (max-width: 720px) {
-  .filters, .filters:has(#s-q) { grid-template-columns: 1fr 1fr; }
+  .filters, .filters:has(#f-tag), .filters:has(#s-q) { grid-template-columns: 1fr 1fr; }
   .filters input[type="search"] { grid-column: 1 / -1; }
 }
 

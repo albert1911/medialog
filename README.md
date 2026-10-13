@@ -31,6 +31,7 @@ The two stores mirror the original Laravel migrations:
 | `id` | random UUID string (unique across devices) |
 | `title` | string(100), required |
 | `type` | string(50), required (free text, with suggestions) |
+| `tags` | list of strings (each up to 50 characters, at most 30), may be empty; duplicates are dropped ignoring case. Records saved before tags existed have none |
 | `cover_image` | a web URL, **or** `cover:<sha256>.<ext>` pointing to an uploaded image in the `covers` store |
 | `cover_aspect` | cover width ÷ height, measured on save. Picks the layout: portrait (< 0.85) fills the card; square and landscape are shown whole over a blurred copy; landscape (≥ 1.3) becomes a banner on the entry page |
 | `description` | up to 500 characters, nullable (the original migration used `string`, i.e. 255; use `text()` if you move back to Laravel) |

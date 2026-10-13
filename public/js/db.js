@@ -2,7 +2,7 @@
 //   media_sources: id, title(100), category(50), description(255)?, link(255)?, timestamps
 //   media_entries: id, title(100), type(50), cover_image?, description(500)?, release_date?,
 //                  chapter_count (default 0 = unknown / ongoing), content (raw html)?, media_source_id? -> media_sources
-//                  (on delete: set null), timestamps
+//                  (on delete: set null), tags (array of strings, may be missing on older records), timestamps
 // plus cover_aspect (cover width / height, used to lay out portrait vs landscape covers)
 //
 // cover_image is either a web URL or a reference to an uploaded image, "cover:<sha256>.<ext>".
@@ -231,6 +231,21 @@ function date(data, field, { label }) {
   return value;
 }
 
+// A list of short labels (an array, or a comma-separated string), trimmed and without
+// duplicates; the first spelling of a tag is kept.
+function tagList(data, field, { max, maxCount }) {
+  const raw = Array.isArray(data[field]) ? data[field] : String(data[field] ?? '').split(',');
+  const tags = [];
+  for (const item of raw) {
+    const tag = String(item ?? '').trim().replace(/\s+/g, ' ');
+    if (!tag || tags.some((t) => t.toLowerCase() === tag.toLowerCase())) continue;
+    if (tag.length > max) throw new ValidationError(field, `Tag “${tag}” must be at most ${max} characters.`);
+    tags.push(tag);
+  }
+  if (tags.length > maxCount) throw new ValidationError(field, `An entry can have at most ${maxCount} tags.`);
+  return tags;
+}
+
 function normalizeSource(data) {
   return {
     title: text(data, 'title', { label: 'Title', max: 100, required: true }),
@@ -258,6 +273,7 @@ function normalizeEntry(data) {
   return {
     title: text(data, 'title', { label: 'Title', max: 100, required: true }),
     type: text(data, 'type', { label: 'Type', max: 50, required: true }),
+    tags: tagList(data, 'tags', { max: 50, maxCount: 30 }),
     // A web URL, or "cover:<id>" for an uploaded image (no 255 limit, so long CDN URLs still fit).
     cover_image,
     cover_aspect: cover_image && Number.isFinite(aspect) && aspect > 0 ? Math.round(aspect * 1000) / 1000 : null,
