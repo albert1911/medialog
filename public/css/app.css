@@ -18,6 +18,7 @@
   --st-repeating: #8c5ae8;
   --st-paused: #e5a82f;
   --st-dropped: #e0475f;
+  --tag: #0b7269; /* tag chips: a hue no status uses */
   --topbar-h: 60px;
   --btn-edge: #000; /* mixed into filled buttons for their border: darker in light mode */
 }
@@ -35,6 +36,7 @@
     --accent-ink: #0b1622;
     --danger: #ff6b81;
     --ok: #7bd555;
+    --tag: #3fcfbf;
     --shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 8px 24px rgb(0 0 0 / 0.25);
     --btn-edge: #fff; /* lighter in dark mode, so it stands out from the dark background */
   }
@@ -303,10 +305,17 @@ option { background: var(--surface); color: var(--text); }
 .tag-chips { display: contents; }
 .tag-box input { flex: 1; min-width: 8rem; width: auto; min-height: 28px; padding: 0.1rem 0.25rem; border: 0; background: transparent; }
 .tag-box input:focus { outline: none; }
-.chip.tag { display: inline-flex; align-items: center; gap: 0.2rem; color: var(--text); }
-a.chip.tag:hover { border-color: var(--accent); color: var(--accent); text-decoration: none; }
-.chip-remove { padding: 0 0.1rem; border: 0; background: none; color: var(--muted); font: inherit; font-size: 1rem; line-height: 1; cursor: pointer; }
-.chip-remove:hover { color: var(--danger); }
+.chip.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  background: color-mix(in srgb, var(--tag) 14%, var(--surface));
+  border-color: color-mix(in srgb, var(--tag) 45%, transparent);
+  color: var(--tag);
+}
+a.chip.tag:hover { border-color: var(--tag); background: color-mix(in srgb, var(--tag) 22%, var(--surface)); text-decoration: none; }
+.chip-remove { padding: 0 0.1rem; border: 0; background: none; color: inherit; opacity: 0.7; font: inherit; font-size: 1rem; line-height: 1; cursor: pointer; }
+.chip-remove:hover { color: var(--danger); opacity: 1; }
 
 fieldset { margin: 0; min-width: 0; }
 fieldset.panel { display: flex; flex-direction: column; gap: 1rem; box-shadow: none; }

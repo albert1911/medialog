@@ -67,7 +67,7 @@ export async function renderEntryDetail(view, id) {
           <span class="chip">${esc(entry.type)}</span>
           <span class="badge status-${entry.status}" id="status-badge">${statusLabel(entry.status)}</span>
         </div>
-        ${tagsOf(entry).length ? `<div class="chips tags" aria-label="Tags">${tagsOf(entry).map((t) => `<a class="chip tag" href="#/" data-tag="${esc(t)}" title="Show entries tagged ${esc(t)}">#${esc(t)}</a>`).join('')}</div>` : ''}
+        ${tagsOf(entry).length ? `<div class="chips tags" aria-label="Tags">${tagsOf(entry).map((t) => `<a class="chip tag" href="#/" data-tag="${esc(t)}" title="Show entries tagged ${esc(t)}">${esc(t)}</a>`).join('')}</div>` : ''}
 
         <dl class="facts">
           <div><dt>Release date</dt><dd>${entry.release_date ? fmtDate(entry.release_date) : '—'}</dd></div>
