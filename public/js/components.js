@@ -317,3 +317,76 @@ export function charCounter(input) {
   update();
   input.after(counter);
 }
+
+// A dropdown with a search box (for long lists like tags and sources). `options` is
+// [{ value, label }]; the first one is the "all" choice. Calls onChange(value) on pick.
+export function searchSelect({ id, label, options, value, onChange }) {
+  const root = document.createElement('div');
+  root.className = 'combo';
+  root.id = id;
+  root.innerHTML = `
+    <button type="button" class="combo-btn" aria-haspopup="listbox" aria-expanded="false" aria-label="${esc(label)}">
+      <span class="combo-label"></span>
+    </button>
+    <div class="combo-pop" hidden>
+      <input type="search" class="combo-search" placeholder="Search…" aria-label="Search ${esc(label)}" autocomplete="off">
+      <ul class="combo-list" role="listbox"></ul>
+    </div>`;
+  const btn = root.querySelector('.combo-btn');
+  const pop = root.querySelector('.combo-pop');
+  const search = root.querySelector('.combo-search');
+  const list = root.querySelector('.combo-list');
+
+  const setLabel = () => {
+    const current = options.find((o) => o.value === value) ?? options[0];
+    const span = root.querySelector('.combo-label');
+    span.textContent = current.label;
+    span.title = current.label;
+    btn.classList.toggle('is-placeholder', current === options[0]);
+  };
+  const drawList = () => {
+    const needle = search.value.trim().toLowerCase();
+    const shown = options.filter((o) => !needle || o.label.toLowerCase().includes(needle));
+    list.innerHTML = shown.length
+      ? shown.map((o) => `<li role="option" tabindex="-1" data-value="${esc(o.value)}" aria-selected="${o.value === value}" title="${esc(o.label)}">${esc(o.label)}</li>`).join('')
+      : '<li class="combo-empty">No matches</li>';
+  };
+  const close = () => {
+    pop.hidden = true;
+    btn.setAttribute('aria-expanded', 'false');
+    document.removeEventListener('pointerdown', outside, true);
+  };
+  const outside = (event) => { if (!root.contains(event.target)) close(); };
+  const open = () => {
+    search.value = '';
+    drawList();
+    pop.hidden = false;
+    btn.setAttribute('aria-expanded', 'true');
+    document.addEventListener('pointerdown', outside, true);
+    search.focus();
+    list.querySelector('[aria-selected="true"]')?.scrollIntoView({ block: 'nearest' });
+  };
+  const pick = (li) => {
+    if (!li?.dataset || li.dataset.value === undefined) return;
+    value = li.dataset.value;
+    setLabel();
+    close();
+    btn.focus();
+    onChange(value);
+  };
+
+  btn.addEventListener('click', () => (pop.hidden ? open() : close()));
+  search.addEventListener('input', drawList);
+  list.addEventListener('click', (event) => pick(event.target.closest('li')));
+  root.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && !pop.hidden) { close(); btn.focus(); }
+    else if (event.key === 'Enter' && event.target === search) { event.preventDefault(); pick(list.querySelector('li[data-value]')); }
+    else if (event.key === 'ArrowDown' && event.target === search) { event.preventDefault(); list.querySelector('li[data-value]')?.focus(); }
+    else if (event.key === 'Enter' && event.target.matches('li')) pick(event.target);
+    else if (event.key === 'ArrowDown' && event.target.matches('li')) { event.preventDefault(); event.target.nextElementSibling?.focus(); }
+    else if (event.key === 'ArrowUp' && event.target.matches('li')) { event.preventDefault(); (event.target.previousElementSibling ?? search).focus(); }
+  });
+
+  setLabel();
+  return root;
+}

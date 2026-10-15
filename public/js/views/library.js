@@ -1,6 +1,6 @@
 import { Entries, Sources } from '../db.js';
 import { STATUSES, byText, debounce, esc, sameTag, tagList, tagsOf } from '../util.js';
-import { bindCards, renderCards } from '../components.js';
+import { bindCards, renderCards, searchSelect } from '../components.js';
 
 const PREFS_KEY = 'medialog.library';
 const DEFAULTS = { status: 'all', type: '', source: '', tag: '', sort: 'updated' };
@@ -66,19 +66,22 @@ export async function renderLibrary(view) {
         <option value="">All types</option>
         ${types.map((t) => `<option ${t === prefs.type ? 'selected' : ''}>${esc(t)}</option>`).join('')}
       </select>
-      ${tags.length ? `<select id="f-tag" aria-label="Tag">
-        <option value="">All tags</option>
-        ${tags.map((t) => `<option ${t === prefs.tag ? 'selected' : ''}>${esc(t)}</option>`).join('')}
-      </select>` : ''}
-      <select id="f-source" aria-label="Source">
-        <option value="">All sources</option>
-        ${sortedSources.map((s) => `<option value="${s.id}" ${String(s.id) === prefs.source ? 'selected' : ''}>${esc(s.title)}</option>`).join('')}
-      </select>
+      ${tags.length ? '<span id="f-tag-slot"></span>' : ''}
+      <span id="f-source-slot"></span>
       <select id="f-sort" aria-label="Sort">
         ${Object.entries(SORTS).map(([k, [label]]) => `<option value="${k}" ${k === prefs.sort ? 'selected' : ''}>${label}</option>`).join('')}
       </select>
     </div>
     <div class="cards" id="grid"></div>`;
+
+  const mountCombo = (slot, key, label, allLabel, items) =>
+    view.querySelector(slot)?.replaceWith(searchSelect({
+      id: `f-${key}`, label, value: prefs[key],
+      options: [{ value: '', label: allLabel }, ...items],
+      onChange: (v) => { prefs[key] = v; savePrefs(prefs); draw(); },
+    }));
+  mountCombo('#f-tag-slot', 'tag', 'Tag', 'All tags', tags.map((t) => ({ value: t, label: t })));
+  mountCombo('#f-source-slot', 'source', 'Source', 'All sources', sortedSources.map((s) => ({ value: String(s.id), label: s.title })));
 
   const tabs = view.querySelector('#tabs');
   const grid = view.querySelector('#grid');
@@ -120,7 +123,7 @@ export async function renderLibrary(view) {
     draw();
   }, 120));
 
-  for (const [selector, key] of [['#f-type', 'type'], ['#f-tag', 'tag'], ['#f-source', 'source'], ['#f-sort', 'sort']]) {
+  for (const [selector, key] of [['#f-type', 'type'], ['#f-sort', 'sort']]) {
     view.querySelector(selector)?.addEventListener('change', (event) => {
       prefs[key] = event.target.value;
       savePrefs(prefs);

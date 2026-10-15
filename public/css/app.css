@@ -234,7 +234,35 @@ input:focus, select:focus, textarea:focus, .btn:focus-visible {
 /* ---- dropdowns (browser's own arrow)
    Chromium (customizable <select>): the open list is styled to match the app;
    other browsers keep their native list. */
-select { cursor: pointer; }
+select { cursor: pointer; text-overflow: ellipsis; }
+@supports (appearance: base-select) {
+  select selectedcontent { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+}
+
+/* Searchable dropdown (library tag / source filters) */
+.combo { position: relative; min-width: 0; }
+.combo-btn {
+  width: 100%; min-height: 38px; padding: 0.45rem 0.65rem; display: flex; align-items: center; gap: 0.5rem;
+  border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2); color: var(--text);
+  font: inherit; text-align: left; cursor: pointer;
+}
+.combo-btn::after { content: ''; margin-left: auto; flex: none; width: 0.4rem; height: 0.4rem; border: solid currentColor; border-width: 0 2px 2px 0; rotate: 45deg; translate: 0 -2px; opacity: 0.7; }
+.combo-btn:hover, .combo-btn[aria-expanded="true"] { border-color: color-mix(in srgb, var(--accent) 45%, var(--border)); }
+.combo-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.combo-btn.is-placeholder { color: var(--muted); }
+.combo-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.combo-pop {
+  position: absolute; z-index: 30; top: calc(100% + 6px); left: 0; min-width: 100%; width: max-content; max-width: min(360px, 90vw);
+  padding: 4px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface);
+  box-shadow: 0 10px 30px rgb(0 0 0 / 0.25);
+}
+.combo-search { margin-bottom: 4px; }
+.combo-list { list-style: none; margin: 0; padding: 0; max-height: min(260px, 50vh); overflow-y: auto; }
+.combo-list li { padding: 0.5rem 0.65rem; border-radius: 6px; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.combo-list li:hover, .combo-list li:focus-visible { background: var(--surface-2); outline: none; }
+.combo-list li[aria-selected="true"] { color: var(--accent); font-weight: 600; }
+.combo-list .combo-empty { color: var(--muted); cursor: default; }
+.combo-list .combo-empty:hover { background: transparent; }
 
 /* Type / category: dropdown that can switch to a text box for a new value */
 [hidden] { display: none !important; }
@@ -373,10 +401,10 @@ legend { font-weight: 700; padding: 0 0.35rem; }
 .tab .count { font-size: 0.75rem; color: var(--muted); background: var(--surface-2); padding: 0 0.4rem; border-radius: 999px; }
 
 .filters { display: grid; grid-template-columns: 2fr repeat(3, 1fr); gap: 0.6rem; margin-bottom: 1.5rem; }
-.filters:has(#f-tag) { grid-template-columns: 2fr repeat(4, 1fr); }
+.filters:has(#f-tag-slot, #f-tag) { grid-template-columns: 2fr repeat(4, 1fr); }
 .filters:has(#s-q) { grid-template-columns: 2fr 1fr; }
 @media (max-width: 720px) {
-  .filters, .filters:has(#f-tag), .filters:has(#s-q) { grid-template-columns: 1fr 1fr; }
+  .filters, .filters:has(#f-tag-slot, #f-tag),.filters:has(#s-q) { grid-template-columns: 1fr 1fr; }
   .filters input[type="search"] { grid-column: 1 / -1; }
 }
 
