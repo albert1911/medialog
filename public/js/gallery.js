@@ -161,6 +161,11 @@ export async function imageUrl(img, size) {
   return url;
 }
 
+// ---------------------------------------------------------------- description
+
+// Saves an image's optional description (empty clears it). Returns the updated record.
+export const setDescription = (img, text) => Gallery.update(img.id, { description: text });
+
 // ---------------------------------------------------------------- deleting
 
 // Removes the image from the gallery (and from every device through sync). Within 10 minutes of

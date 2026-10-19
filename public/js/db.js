@@ -442,6 +442,7 @@ function normalizeGalleryImage(data) {
     pending: Boolean(data.pending), // added on a device but not uploaded to Cloudinary yet
     missing: Boolean(data.missing), // a device found it gone from Cloudinary; one with the file re-uploads it
     position: Number.isFinite(data.position) ? data.position : null, // gallery order (see galleryKey)
+    description: typeof data.description === 'string' && data.description.trim() ? data.description.trim().slice(0, 1000) : null,
   };
 }
 

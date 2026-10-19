@@ -222,8 +222,19 @@ function openViewer(items, start, onChange) {
     <button type="button" class="viewer-nav prev" aria-label="Previous image">‹</button>
     <button type="button" class="viewer-nav next" aria-label="Next image">›</button>
     <div class="viewer-bar">
+      <div class="viewer-caption" hidden>
+        <p class="viewer-desc"></p>
+        <form class="viewer-desc-form" hidden>
+          <textarea rows="3" maxlength="1000" placeholder="Description (optional)" aria-label="Description"></textarea>
+          <div class="row">
+            <button type="submit" class="btn btn-small">Save</button>
+            <button type="button" class="btn btn-small" data-v="desc-cancel">Cancel</button>
+          </div>
+        </form>
+      </div>
       <span class="viewer-count"></span>
       <div class="row">
+        <button type="button" class="btn btn-small" data-v="describe">Description</button>
         <button type="button" class="btn btn-small btn-danger-ghost" data-v="delete">Delete</button>
         <button type="button" class="btn btn-small" data-v="close">Close</button>
       </div>
@@ -234,6 +245,42 @@ function openViewer(items, start, onChange) {
   const deleteButton = dialog.querySelector('[data-v=delete]');
 
   const spinner = dialog.querySelector('.viewer-spinner');
+  const caption = dialog.querySelector('.viewer-caption');
+  const descText = dialog.querySelector('.viewer-desc');
+  const descForm = dialog.querySelector('.viewer-desc-form');
+  const descInput = descForm.querySelector('textarea');
+  const describeButton = dialog.querySelector('[data-v=describe]');
+
+  // Shows the current image's description (if any); `editing` swaps it for the edit form.
+  function renderCaption(editing = false) {
+    const image = items[index]?.image;
+    const text = image?.description ?? '';
+    describeButton.hidden = !image || editing; // the cover has no gallery record to describe
+    describeButton.textContent = text ? 'Edit description' : 'Add description';
+    descText.textContent = text;
+    descText.hidden = editing || !text;
+    descForm.hidden = !editing;
+    caption.hidden = !editing && !text;
+    dialog.classList.toggle('has-caption', !caption.hidden);
+    if (editing) {
+      descInput.value = text;
+      descInput.focus();
+    }
+  }
+
+  descForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const image = items[index].image;
+    try {
+      const saved = await G.setDescription(image, descInput.value);
+      if (saved) image.description = saved.description;
+    } catch (err) {
+      toast(`Could not save the description: ${err.message}`, 'error');
+    }
+    renderCaption();
+  });
+  describeButton.addEventListener('click', () => renderCaption(true));
+  dialog.querySelector('[data-v=desc-cancel]').addEventListener('click', () => renderCaption());
 
   // Full images, downloaded (if needed) and decoded ahead of time, so they appear in one step.
   // The square grid thumbnail is never shown here: it's cropped, so it looked like a zoomed-in
@@ -261,6 +308,7 @@ function openViewer(items, start, onChange) {
     dialog.querySelectorAll('.viewer-nav').forEach((b) => (b.hidden = items.length < 2));
     deleteButton.hidden = Boolean(item.cover); // the cover is changed via Edit, not here
     note.hidden = true;
+    renderCaption();
 
     // Dim the previous image right away; show a spinner only if preparing takes a moment.
     imgEl.classList.add('switching');
@@ -344,7 +392,7 @@ function openViewer(items, start, onChange) {
 
   dialog.addEventListener('pointerdown', (e) => {
     pressedOn = e.target === imgEl ? 'image' : e.target === dialog ? 'backdrop' : null;
-    if (e.target.closest('button') || e.button > 0) return; // nav / bar buttons work normally
+    if (e.target.closest('button, .viewer-caption') || e.button > 0) return; // buttons and the description work normally
     pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
     dialog.setPointerCapture?.(e.pointerId);
     suppressClick = false;
@@ -418,6 +466,7 @@ function openViewer(items, start, onChange) {
     suppressClick = false;
   });
   dialog.addEventListener('keydown', (e) => {
+    if (e.target === descInput) return; // typing a description: arrows move the cursor
     if (e.key === 'ArrowLeft') show(index - 1);
     if (e.key === 'ArrowRight') show(index + 1);
   });

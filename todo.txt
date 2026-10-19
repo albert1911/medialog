@@ -1,1 +1,3 @@
-- add framework to edit raw html not on a plain text area
+- add framework to edit raw html instead just with a plain text area
+- add an option to click on the image to zoom when previewing gallery image (desktop)
+- (minor) in mobile when previewing gallery image, I see that currently we are using scale 2.5, we need some sort of checks for when the image width (.viewer-img) is smaller than the .viewer itself, make it can't traslate past the image with a padding of 4px (if this thing is even possible)
