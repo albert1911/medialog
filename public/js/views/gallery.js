@@ -277,15 +277,21 @@ function openViewer(items, start, onChange) {
     if (!vv || !dialog.classList.contains('editing')) {
       dialog.style.height = dialog.style.top = '';
       dialog.style.removeProperty('--vvh');
+      dialog.style.removeProperty('--bar-h');
       return;
     }
     dialog.style.height = `${vv.height}px`;
     dialog.style.top = `${vv.offsetTop}px`;
     dialog.style.setProperty('--vvh', `${vv.height}px`);
+    dialog.style.setProperty('--bar-h', `${dialog.querySelector('.viewer-bar').offsetHeight}px`);
   }
+  // The form's height changes as the textarea is resized or the text wraps.
+  const barObserver = new ResizeObserver(fitToVisible);
+  barObserver.observe(dialog.querySelector('.viewer-bar'));
   vv?.addEventListener('resize', fitToVisible);
   vv?.addEventListener('scroll', fitToVisible);
   dialog.addEventListener('close', () => {
+    barObserver.disconnect();
     vv?.removeEventListener('resize', fitToVisible);
     vv?.removeEventListener('scroll', fitToVisible);
   });
