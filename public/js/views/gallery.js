@@ -263,11 +263,32 @@ function openViewer(items, start, onChange) {
     caption.hidden = !editing && !text;
     dialog.classList.toggle('has-caption', !caption.hidden);
     dialog.classList.toggle('editing', editing);
+    fitToVisible();
     if (editing) {
       descInput.value = text;
       descInput.focus();
     }
   }
+
+  // On phones the keyboard covers the bottom of the page without resizing it. While editing,
+  // fit the viewer to the visible area so the form sits above the keyboard.
+  const vv = window.visualViewport;
+  function fitToVisible() {
+    if (!vv || !dialog.classList.contains('editing')) {
+      dialog.style.height = dialog.style.top = '';
+      dialog.style.removeProperty('--vvh');
+      return;
+    }
+    dialog.style.height = `${vv.height}px`;
+    dialog.style.top = `${vv.offsetTop}px`;
+    dialog.style.setProperty('--vvh', `${vv.height}px`);
+  }
+  vv?.addEventListener('resize', fitToVisible);
+  vv?.addEventListener('scroll', fitToVisible);
+  dialog.addEventListener('close', () => {
+    vv?.removeEventListener('resize', fitToVisible);
+    vv?.removeEventListener('scroll', fitToVisible);
+  });
 
   descForm.addEventListener('submit', async (e) => {
     e.preventDefault();
