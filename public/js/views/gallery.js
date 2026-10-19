@@ -262,6 +262,7 @@ function openViewer(items, start, onChange) {
     descForm.hidden = !editing;
     caption.hidden = !editing && !text;
     dialog.classList.toggle('has-caption', !caption.hidden);
+    dialog.classList.toggle('editing', editing);
     if (editing) {
       descInput.value = text;
       descInput.focus();
