@@ -437,6 +437,7 @@ legend { font-weight: 700; padding: 0 0.35rem; }
   font-size: 0.92rem;
   font-weight: 650;
   display: -webkit-box;
+  line-clamp: 2;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
@@ -801,7 +802,7 @@ legend { font-weight: 700; padding: 0 0.35rem; }
 /* While editing, the bar grows: pin the image to the top and keep it clear of the form. */
 .viewer.editing[open] { align-items: start; padding-top: 1rem; }
 /* --vvh: the visible height, set from JS so the on-screen keyboard is accounted for. */
-.viewer.editing .viewer-img { max-height: max(5rem, calc(var(--vvh, 100dvh) - 15rem)); }
+.viewer.editing .viewer-img { max-height: max(5rem, calc(var(--vvh, 100dvh) - 5rem)); }
 .viewer-bar .btn { background: rgb(255 255 255 / 0.1); border-color: rgb(255 255 255 / 0.2); color: #fff; }
 .viewer-bar .btn-danger-ghost { color: #ff8a9b; }
 @media (max-width: 720px) { .viewer-nav { display: none; } } /* swipe instead */
