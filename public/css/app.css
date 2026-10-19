@@ -800,7 +800,6 @@ legend { font-weight: 700; padding: 0 0.35rem; }
 .viewer.has-caption .viewer-img { max-height: calc(100dvh - 10rem - env(safe-area-inset-bottom)); }
 /* While editing, the bar grows: pin the image to the top and keep it clear of the form. */
 .viewer.editing[open] { align-items: start; padding-top: 1rem; }
-.viewer.editing .viewer-img { max-height: calc(100dvh - 15rem - env(safe-area-inset-bottom)); }
 .viewer-bar .btn { background: rgb(255 255 255 / 0.1); border-color: rgb(255 255 255 / 0.2); color: #fff; }
 .viewer-bar .btn-danger-ghost { color: #ff8a9b; }
 @media (max-width: 720px) { .viewer-nav { display: none; } } /* swipe instead */
