@@ -281,6 +281,7 @@ function openViewer(items, start, onChange) {
       <span class="viewer-count"></span>
       <div class="row">
         <button type="button" class="btn btn-small" data-v="describe">Description</button>
+        <a class="btn btn-small" data-v="original" target="_blank" rel="noopener noreferrer" hidden>Open original</a>
         <button type="button" class="btn btn-small btn-danger-ghost" data-v="delete">Delete</button>
         <button type="button" class="btn btn-small" data-v="close">Close</button>
       </div>
@@ -289,6 +290,7 @@ function openViewer(items, start, onChange) {
   const imgEl = dialog.querySelector('.viewer-img');
   const note = dialog.querySelector('.viewer-note');
   const deleteButton = dialog.querySelector('[data-v=delete]');
+  const originalLink = dialog.querySelector('[data-v=original]');
 
   const spinner = dialog.querySelector('.viewer-spinner');
   const caption = dialog.querySelector('.viewer-caption');
@@ -414,6 +416,9 @@ function openViewer(items, start, onChange) {
     dialog.querySelector('.viewer-count').textContent = `${item.cover ? 'Cover · ' : ''}${index + 1} / ${items.length}`;
     dialog.querySelectorAll('.viewer-nav').forEach((b) => (b.hidden = items.length < 2));
     deleteButton.hidden = Boolean(item.cover); // the cover is changed via Edit, not here
+    const original = item.image && G.originalUrl(item.image); // only once it's on Cloudinary
+    originalLink.hidden = !original;
+    if (original) originalLink.href = original;
     note.hidden = true;
     renderCaption();
 

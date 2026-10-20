@@ -782,7 +782,7 @@ legend { font-weight: 700; padding: 0 0.35rem; }
 .viewer[open] { display: grid; place-items: center; }
 .viewer-img {
   max-width: calc(100vw - 1.5rem);
-  max-height: calc(100dvh - 2rem - env(safe-area-inset-bottom));
+  max-height: calc(100dvh - 6rem - env(safe-area-inset-bottom));
   object-fit: contain;
   border-radius: 6px;
   user-select: none;

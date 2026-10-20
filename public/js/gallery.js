@@ -55,6 +55,9 @@ export async function clearConfig() {
 const deliveryUrl = (img, transformation = '') =>
   `https://res.cloudinary.com/${img.cloud}/image/upload/${transformation ? `${transformation}/` : ''}v${img.version}/${img.public_id}.${img.format}`;
 
+// Link to the full image on Cloudinary, or null while it isn't uploaded yet.
+export const originalUrl = (img) => (img.public_id && img.cloud && img.version && img.format ? deliveryUrl(img) : null);
+
 // ---------------------------------------------------------------- adding & uploading
 
 export async function addImages(entryId, files) {
