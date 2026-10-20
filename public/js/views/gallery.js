@@ -40,32 +40,44 @@ export async function mountGallery(section, entry) {
   let items = [];
   let images = [];
   let reordering = false;
+  let selecting = false; // picking images to share one description
+  const selected = new Set(); // ids of the picked images
   // While a tile is being dragged, redraws (another change, a sync) wait until it's dropped.
   let dragActive = false;
   let redrawPending = false;
 
   async function draw() {
-    images = await Gallery.byEntry(entry.id);
+    images = G.resolveGroups(await Gallery.byEntry(entry.id));
     items = itemsFor(entry, images);
-    if (images.length < 2) reordering = false;
+    if (images.length < 2) reordering = selecting = false;
+    for (const id of selected) if (!images.some((g) => g.id === id)) selected.delete(id); // deleted meanwhile
+    if (!selecting) selected.clear();
     const canAdd = Boolean(G.getConfig());
+    const idle = !reordering && !selecting;
     section.classList.toggle('reordering', reordering);
+    section.classList.toggle('selecting', selecting);
     section.innerHTML = `
       <div class="section-head">
         <h2 class="section-title">Gallery ${images.length ? `<span class="muted">(${images.length})</span>` : ''}</h2>
         <div class="row">
-          ${images.length >= 2 ? `<button type="button" class="btn btn-small" data-g="reorder">${reordering ? 'Done' : 'Reorder'}</button>` : ''}
-          ${canAdd && !reordering ? '<label class="btn btn-small">＋ Add images<input type="file" accept="image/*" multiple hidden></label>' : ''}
+          ${images.length >= 2 && !selecting ? `<button type="button" class="btn btn-small" data-g="reorder">${reordering ? 'Done' : 'Reorder'}</button>` : ''}
+          ${images.length >= 2 && idle ? '<button type="button" class="btn btn-small" data-g="select">Select</button>' : ''}
+          ${selecting ? `
+            <button type="button" class="btn btn-small" data-g="share" ${selected.size < 2 ? 'disabled' : ''}>Share description (${selected.size})</button>
+            <button type="button" class="btn btn-small" data-g="select">Cancel</button>` : ''}
+          ${canAdd && idle ? '<label class="btn btn-small">＋ Add images<input type="file" accept="image/*" multiple hidden></label>' : ''}
         </div>
       </div>
       ${reordering ? '<p class="muted small reorder-hint">Drag images to reorder them, or use the arrows. The cover always stays first.</p>' : ''}
+      ${selecting ? '<p class="muted small reorder-hint">Tap the images that should share one description (2 or more). Images that already share one stay linked.</p>' : ''}
       ${items.length
         ? `<div class="gallery-grid">${items.map((item, i) => `
-            <button type="button" class="gallery-tile" data-index="${i}" ${item.image ? `data-image="${item.image.id}"` : ''}
+            <button type="button" class="gallery-tile${item.image && selected.has(item.image.id) ? ' selected' : ''}" data-index="${i}" ${item.image ? `data-image="${item.image.id}"` : ''}
               aria-label="${item.cover ? 'Open cover image' : `Open image ${i + 1}`}">
               <img alt="" hidden draggable="false">
               ${item.cover ? '<span class="gallery-badge">Cover</span>' : ''}
               ${item.image?.pending ? '<span class="gallery-badge">Uploading…</span>' : ''}
+              ${item.image?.desc_group ? '<span class="gallery-link" title="Shares its description" aria-label="Shares its description">🔗</span>' : ''}
               ${reordering && item.image ? `
                 <span class="move-buttons">
                   <span class="move-btn" role="button" tabindex="0" data-move="-1" aria-label="Move earlier">◀</span>
@@ -93,6 +105,12 @@ export async function mountGallery(section, entry) {
       };
       thumbObserver.observe(tile);
       tile.addEventListener('click', (event) => {
+        if (selecting) {
+          if (!item.image) return; // the cover has no gallery record
+          if (!selected.delete(item.image.id)) selected.add(item.image.id);
+          draw();
+          return;
+        }
         if (reordering) {
           const move = event.target.closest('[data-move]');
           if (move && item.image) moveBy(item.image.id, Number(move.dataset.move));
@@ -110,6 +128,27 @@ export async function mountGallery(section, entry) {
 
     section.querySelector('[data-g=reorder]')?.addEventListener('click', () => {
       reordering = !reordering;
+      draw();
+    });
+    section.querySelector('[data-g=select]')?.addEventListener('click', () => {
+      selecting = !selecting;
+      draw();
+    });
+    section.querySelector('[data-g=share]')?.addEventListener('click', async () => {
+      const picked = images.filter((g) => selected.has(g.id));
+      // Images being joined may already share a description with others: those come along.
+      const groups = new Set(picked.map((g) => g.desc_group).filter(Boolean));
+      const involved = images.filter((g) => selected.has(g.id) || groups.has(g.desc_group));
+      const texts = new Set(involved.map((g) => g.description).filter(Boolean));
+      const newest = involved.filter((g) => g.description).reduce((a, b) => (!a || b.updated_at > a.updated_at ? b : a), null);
+      if (texts.size > 1 && !confirm('These images have different descriptions. Use the most recently edited one for all of them?')) return;
+      try {
+        await G.shareDescription(picked.map((g) => g.id), newest?.description ?? null);
+        toast(`${picked.length} images now share one description`, 'success');
+      } catch (err) {
+        toast(`Could not share the description: ${err.message}`, 'error');
+      }
+      selecting = false;
       draw();
     });
     if (reordering) enableDragging(section.querySelector('.gallery-grid'));
@@ -224,6 +263,10 @@ function openViewer(items, start, onChange) {
     <div class="viewer-bar">
       <div class="viewer-caption" hidden>
         <p class="viewer-desc"></p>
+        <p class="viewer-shared small" hidden>
+          <span class="viewer-shared-text"></span>
+          <button type="button" class="link-btn" data-v="unlink">Unlink</button>
+        </p>
         <form class="viewer-desc-form" hidden>
           <textarea rows="3" maxlength="1000" placeholder="Description (optional)" aria-label="Description"></textarea>
           <div class="row">
@@ -250,6 +293,7 @@ function openViewer(items, start, onChange) {
   const descForm = dialog.querySelector('.viewer-desc-form');
   const descInput = descForm.querySelector('textarea');
   const describeButton = dialog.querySelector('[data-v=describe]');
+  const shared = dialog.querySelector('.viewer-shared');
 
   // Shows the current image's description (if any); `editing` swaps it for the edit form.
   function renderCaption(editing = false) {
@@ -259,9 +303,11 @@ function openViewer(items, start, onChange) {
     describeButton.textContent = text ? 'Edit description' : 'Add description';
     descText.textContent = text;
     descText.hidden = editing || !text;
-    dialog.style.setProperty('--desc-h', `${descText.height}px`);
+    const others = image?.desc_group ? items.filter((it) => it.image?.desc_group === image.desc_group).length - 1 : 0;
+    dialog.querySelector('.viewer-shared-text').textContent = `Shared with ${others} other image${others === 1 ? '' : 's'}`;
+    shared.hidden = editing || others < 1;    dialog.style.setProperty('--desc-h', `${descText.height}px`);
     descForm.hidden = !editing;
-    caption.hidden = !editing && !text;
+    caption.hidden = !editing && !text && shared.hidden;
     dialog.classList.toggle('has-caption', !caption.hidden);
     dialog.classList.toggle('editing', editing);
     fitToVisible();
@@ -302,13 +348,27 @@ function openViewer(items, start, onChange) {
     const image = items[index].image;
     try {
       const saved = await G.setDescription(image, descInput.value);
-      if (saved) image.description = saved.description;
+      if (saved) {
+        // the whole group got the new text
+        for (const it of items) if (it.image && (it.image === image || (image.desc_group && it.image.desc_group === image.desc_group))) it.image.description = saved.description;
+      }
     } catch (err) {
       toast(`Could not save the description: ${err.message}`, 'error');
     }
     renderCaption();
   });
   describeButton.addEventListener('click', () => renderCaption(true));
+  dialog.querySelector('[data-v=unlink]').addEventListener('click', async () => {
+    const image = items[index].image;
+    try {
+      await G.unshareDescription(image);
+      image.desc_group = null;
+    } catch (err) {
+      toast(`Could not unlink the description: ${err.message}`, 'error');
+    }
+    renderCaption();
+    onChange();
+  });
   dialog.querySelector('[data-v=desc-cancel]').addEventListener('click', () => renderCaption());
 
   // Full images, downloaded (if needed) and decoded ahead of time, so they appear in one step.

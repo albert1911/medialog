@@ -443,6 +443,7 @@ function normalizeGalleryImage(data) {
     missing: Boolean(data.missing), // a device found it gone from Cloudinary; one with the file re-uploads it
     position: Number.isFinite(data.position) ? data.position : null, // gallery order (see galleryKey)
     description: typeof data.description === 'string' && data.description.trim() ? data.description.trim().slice(0, 1000) : null,
+    desc_group: typeof data.desc_group === 'string' && data.desc_group ? data.desc_group : null, // images with the same id share one description
   };
 }
 
@@ -482,6 +483,54 @@ export const Gallery = {
       await wrap(store.put(record));
       return record;
     });
+  },
+
+  // Puts the images in one description group, all showing `description`. Images already in the
+  // groups being joined come along (the groups merge). Returns the group id.
+  async link(ids, description) {
+    return withTx([GALLERY], 'readwrite', async (tx) => {
+      const store = tx.objectStore(GALLERY);
+      const picked = [];
+      for (const id of ids) {
+        const image = live(await wrap(store.get(String(id))));
+        if (image) picked.push(image);
+      }
+      const groups = new Set(picked.map((g) => g.desc_group).filter(Boolean));
+      const members = new Map(picked.map((g) => [g.id, g]));
+      if (groups.size) {
+        for (const image of await wrap(store.index('entry_id').getAll(picked[0].entry_id))) {
+          if (live(image) && groups.has(image.desc_group)) members.set(image.id, image);
+        }
+      }
+      const group = [...groups][0] ?? newId();
+      const now = new Date().toISOString();
+      for (const image of members.values()) {
+        await wrap(store.put({ ...image, ...normalizeGalleryImage({ ...image, desc_group: group, description }), updated_at: now }));
+      }
+      return group;
+    });
+  },
+
+  // Saves a description for an image; if it is in a group, for every image in the group.
+  async describe(image, description) {
+    if (!image.desc_group) return this.update(image.id, { description });
+    return withTx([GALLERY], 'readwrite', async (tx) => {
+      const store = tx.objectStore(GALLERY);
+      const now = new Date().toISOString();
+      let saved = null;
+      for (const member of await wrap(store.index('entry_id').getAll(image.entry_id))) {
+        if (!live(member) || member.desc_group !== image.desc_group) continue;
+        const record = { ...member, ...normalizeGalleryImage({ ...member, description }), updated_at: now };
+        await wrap(store.put(record));
+        if (member.id === image.id) saved = record;
+      }
+      return saved;
+    });
+  },
+
+  // Takes an image out of its group; it keeps the description as its own.
+  unlink(id) {
+    return this.update(id, { desc_group: null });
   },
 
   // Saves a new order. `orderedIds`: the entry's images in their new order; `movedId`: the one

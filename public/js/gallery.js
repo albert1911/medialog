@@ -163,8 +163,36 @@ export async function imageUrl(img, size) {
 
 // ---------------------------------------------------------------- description
 
-// Saves an image's optional description (empty clears it). Returns the updated record.
-export const setDescription = (img, text) => Gallery.update(img.id, { description: text });
+// Saves an image's optional description (empty clears it); an image in a description group
+// updates the whole group. Returns the updated record.
+export const setDescription = (img, text) => Gallery.describe(img, text);
+
+// Makes the images share one description (`text`). Joining an existing group merges it.
+export const shareDescription = (ids, text) => Gallery.link(ids, text);
+
+// Gives the image its own description again (it keeps the current text).
+export const unshareDescription = (img) => Gallery.unlink(img.id);
+
+// Groups of images sharing a description: the group's text is the most recently edited member's.
+// A group with a single image left is treated as ungrouped. Returns the same records, adjusted
+// for display only (nothing is saved).
+export function resolveGroups(images) {
+  const groups = new Map();
+  for (const img of images) {
+    if (!img.desc_group) continue;
+    if (!groups.has(img.desc_group)) groups.set(img.desc_group, []);
+    groups.get(img.desc_group).push(img);
+  }
+  for (const members of groups.values()) {
+    if (members.length < 2) {
+      members[0].desc_group = null;
+      continue;
+    }
+    const newest = members.reduce((a, b) => (b.updated_at > a.updated_at ? b : a));
+    for (const img of members) img.description = newest.description;
+  }
+  return images;
+}
 
 // ---------------------------------------------------------------- deleting
 
