@@ -268,7 +268,7 @@ function openViewer(items, start, onChange) {
             <button type="button" class="link-btn" data-v="unlink">Unlink</button>
           </p>
           <p class="viewer-desc" title="Tap to hide"></p>
-          <button type="button" class="btn btn-small" data-v="desc-show" hidden>Show description</button>
+          <button type="button" class="link-btn" data-v="desc-show" hidden>Show description</button>
         </div>
         <form class="viewer-desc-form" hidden>
           <textarea rows="3" maxlength="1000" placeholder="Description (optional)" aria-label="Description"></textarea>
