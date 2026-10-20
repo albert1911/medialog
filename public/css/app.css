@@ -834,9 +834,9 @@ legend { font-weight: 700; padding: 0 0.35rem; }
   background: linear-gradient(transparent, rgb(0 0 0 / 0.6));
 }
 .viewer-bar { flex-wrap: wrap; }
-.viewer-caption { flex-basis: 100%; margin: 0 auto; color: #fff; padding: 0.25rem; }
+.viewer-caption { flex-basis: 100%; margin: 0 auto; color: #fff; }
 .viewer-desc { margin: 0; white-space: pre-wrap; text-align: right; height: calc(var(--desc-h) + 32px); align-content: end; }
-.viewer-desc-row { display: flex; align-items: flex-end; justify-content: space-between; gap: 0.75rem; background: linear-gradient(to bottom, transparent 0%, black 100%); }
+.viewer-desc-row { display: flex; align-items: flex-end; justify-content: space-between; gap: 0.75rem; background: linear-gradient(to bottom, transparent 0%, black 100%); padding: 6rem .25rem .25rem; }
 .viewer-desc-row .viewer-desc { flex: 1; min-width: 0; cursor: pointer; }
 .viewer-desc-row [data-v=desc-show] { margin-left: auto; padding-left: 0; }
 .viewer-shared { margin: 0; flex: none; max-width: 40%; text-align: left; color: rgb(255 255 255 / 0.75); }
