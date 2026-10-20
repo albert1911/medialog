@@ -781,8 +781,8 @@ legend { font-weight: 700; padding: 0 0.35rem; }
 .viewer::backdrop { background: transparent; }
 .viewer[open] { display: grid; place-items: center; }
 .viewer-img {
-  max-width: calc(100vw - 2rem);
-  max-height: calc(100dvh - 6rem - env(safe-area-inset-bottom));
+  max-width: calc(100vw - 1.5rem);
+  max-height: calc(100dvh - 2rem - env(safe-area-inset-bottom));
   object-fit: contain;
   border-radius: 6px;
   user-select: none;
@@ -836,12 +836,14 @@ legend { font-weight: 700; padding: 0 0.35rem; }
 .viewer-bar { flex-wrap: wrap; }
 .viewer-caption { flex-basis: 100%; margin: 0 auto; color: #fff; }
 .viewer-desc { margin: 0; white-space: pre-wrap; text-align: right; background: linear-gradient(to bottom, transparent 0%, black 100%); height: calc(var(--desc-h) + 32px); align-content: end; }
-.viewer-shared { margin: 0; text-align: right; color: rgb(255 255 255 / 0.75); }
-.viewer-shared .link-btn { background: none; border: 0; padding: 0 0 0 0.4rem; color: inherit; font: inherit; text-decoration: underline; cursor: pointer; }
+.viewer-desc-row { display: flex; align-items: flex-end; justify-content: space-between; gap: 0.75rem; }
+.viewer-desc-row .viewer-desc { flex: 1; min-width: 0; }
+.viewer-shared { margin: 0; flex: none; max-width: 40%; text-align: left; color: rgb(255 255 255 / 0.75); }
+.viewer-shared .link-btn { background: none; border: 0; padding: 0; display: block; color: inherit; font: inherit; text-decoration: underline; cursor: pointer; }
 .viewer-desc-form { display: flex; flex-direction: column; gap: 0.5rem; }
 .viewer-desc-form textarea { width: 100%; resize: vertical; }
 .viewer-desc-form .row { justify-content: center; }
-.viewer.has-caption .viewer-img { max-height: calc(100dvh - 10rem - env(safe-area-inset-bottom)); }
+.viewer.has-caption .viewer-img { max-height: calc(100dvh - 8rem - env(safe-area-inset-bottom)); }
 /* While editing, the bar grows: pin the image to the top and keep it clear of the form. */
 .viewer.editing[open] { align-items: start; padding-top: 1rem; }
 /* --vvh: the visible height, set from JS so the on-screen keyboard is accounted for. */
