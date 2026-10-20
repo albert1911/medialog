@@ -259,6 +259,7 @@ function openViewer(items, start, onChange) {
     describeButton.textContent = text ? 'Edit description' : 'Add description';
     descText.textContent = text;
     descText.hidden = editing || !text;
+    dialog.style.setProperty('--desc-h', `${descText.height}px`);
     descForm.hidden = !editing;
     caption.hidden = !editing && !text;
     dialog.classList.toggle('has-caption', !caption.hidden);

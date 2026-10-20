@@ -793,8 +793,8 @@ legend { font-weight: 700; padding: 0 0.35rem; }
   background: linear-gradient(transparent, rgb(0 0 0 / 0.6));
 }
 .viewer-bar { flex-wrap: wrap; }
-.viewer-caption { flex-basis: 100%; max-width: 640px; margin: 0 auto; color: #fff; }
-.viewer-desc { margin: 0; max-height: 4.5rem; overflow-y: auto; white-space: pre-wrap; overflow-wrap: anywhere; text-align: center; }
+.viewer-caption { flex-basis: 100%; margin: 0 auto; color: #fff; }
+.viewer-desc { margin: 0; white-space: pre-wrap; text-align: right; background: linear-gradient(to bottom, transparent 0%, black 100%); height: calc(var(--desc-h) + 32px); align-content: end; }
 .viewer-desc-form { display: flex; flex-direction: column; gap: 0.5rem; }
 .viewer-desc-form textarea { width: 100%; resize: vertical; }
 .viewer-desc-form .row { justify-content: center; }
