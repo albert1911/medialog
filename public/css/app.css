@@ -168,7 +168,8 @@ p { margin: 0 0 0.75rem; }
     border-top: 1px solid var(--border);
   }
   .nav a { flex: 1; text-align: center; }
-  .container { padding-bottom: calc(5rem + env(safe-area-inset-bottom)); }
+  /* the nav is fixed, so end the scroller above it instead of relying on bottom padding */
+  .container { margin-bottom: calc(3.5rem + env(safe-area-inset-bottom)); padding-bottom: 1.5rem; }
   h1 { font-size: 1.35rem; }
 }
 
