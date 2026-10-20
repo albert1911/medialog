@@ -310,7 +310,7 @@ function openViewer(items, start, onChange) {
     descText.hidden = editing || !text || descHidden;
     showDescButton.hidden = editing || !text || !descHidden;
     const others = image?.desc_group ? items.filter((it) => it.image?.desc_group === image.desc_group).length - 1 : 0;
-    dialog.querySelector('.viewer-shared-text').textContent = `Shared with ${others} other image${others === 1 ? '' : 's'}`;
+    dialog.querySelector('.viewer-shared-text').textContent = `Description shared with ${others} other image${others === 1 ? '' : 's'}`;
     shared.hidden = editing || others < 1;
     dialog.style.setProperty('--desc-h', `${descText.height}px`);
     descForm.hidden = !editing;
