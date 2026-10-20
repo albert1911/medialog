@@ -97,7 +97,7 @@ async function router() {
   view.replaceChildren(next);
   shapeCovers(next); // images that finished loading while the page was off-screen
   document.title = `${title} · Medialog`;
-  window.scrollTo(0, 0);
+  view.scrollTo(0, 0);
 }
 
 // Hide broken cover images so the placeholder initial shows instead.
