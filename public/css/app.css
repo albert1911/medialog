@@ -851,7 +851,27 @@ legend { font-weight: 700; padding: 0 0.35rem; }
 .viewer.editing .viewer-img { max-height: max(5rem, calc(var(--vvh, 100dvh) - var(--bar-h, 12rem) - 1rem)); }
 .viewer-bar .btn { background: rgb(255 255 255 / 0.1); border-color: rgb(255 255 255 / 0.2); color: #fff; }
 .viewer-bar .btn-danger-ghost { color: #ff8a9b; }
-@media (max-width: 720px) { .viewer-nav { display: none; } } /* swipe instead */
+.viewer-caption { min-width: 0; max-width: 100%; box-sizing: border-box; }
+.viewer-desc { overflow-wrap: anywhere; }
+@media (max-width: 720px) {
+  .viewer-nav { display: none; } /* swipe instead */
+  /* On phones the "shared with" note floats at the top of the viewer; the description stays at the bottom.
+     (fixed positions against the viewer itself: its backdrop-filter makes it the containing block) */
+  .viewer-shared {
+    position: fixed;
+    top: max(0.75rem, env(safe-area-inset-top));
+    left: 0;
+    right: 0;
+    width: fit-content;
+    max-width: calc(100% - 2rem);
+    margin: 0 auto;
+    padding: 0.3rem 0.8rem;
+    border-radius: 999px;
+    background: rgb(0 0 0 / 0.55);
+    text-align: center;
+  }
+  .viewer-desc-row .viewer-shared .link-btn { padding-left: 0.6rem; }
+}
 
 /* ---------------------------------------------------------------- misc */
 
