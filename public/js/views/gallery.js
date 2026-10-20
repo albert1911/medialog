@@ -267,7 +267,8 @@ function openViewer(items, start, onChange) {
             <span class="viewer-shared-text"></span>
             <button type="button" class="link-btn" data-v="unlink">Unlink</button>
           </p>
-          <p class="viewer-desc"></p>
+          <p class="viewer-desc" title="Tap to hide"></p>
+          <button type="button" class="btn btn-small" data-v="desc-show" hidden>Show description</button>
         </div>
         <form class="viewer-desc-form" hidden>
           <textarea rows="3" maxlength="1000" placeholder="Description (optional)" aria-label="Description"></textarea>
@@ -296,6 +297,8 @@ function openViewer(items, start, onChange) {
   const descInput = descForm.querySelector('textarea');
   const describeButton = dialog.querySelector('[data-v=describe]');
   const shared = dialog.querySelector('.viewer-shared');
+  const showDescButton = dialog.querySelector('[data-v=desc-show]');
+  let descHidden = false; // the description text was tapped away (kept while browsing images)
 
   // Shows the current image's description (if any); `editing` swaps it for the edit form.
   function renderCaption(editing = false) {
@@ -304,10 +307,12 @@ function openViewer(items, start, onChange) {
     describeButton.hidden = !image || editing; // the cover has no gallery record to describe
     describeButton.textContent = text ? 'Edit description' : 'Add description';
     descText.textContent = text;
-    descText.hidden = editing || !text;
+    descText.hidden = editing || !text || descHidden;
+    showDescButton.hidden = editing || !text || !descHidden;
     const others = image?.desc_group ? items.filter((it) => it.image?.desc_group === image.desc_group).length - 1 : 0;
     dialog.querySelector('.viewer-shared-text').textContent = `Shared with ${others} other image${others === 1 ? '' : 's'}`;
-    shared.hidden = editing || others < 1;    dialog.style.setProperty('--desc-h', `${descText.height}px`);
+    shared.hidden = editing || others < 1;
+    dialog.style.setProperty('--desc-h', `${descText.height}px`);
     descForm.hidden = !editing;
     caption.hidden = !editing && !text && shared.hidden;
     dialog.classList.toggle('has-caption', !caption.hidden);
@@ -359,7 +364,18 @@ function openViewer(items, start, onChange) {
     }
     renderCaption();
   });
-  describeButton.addEventListener('click', () => renderCaption(true));
+  describeButton.addEventListener('click', () => {
+    descHidden = false;
+    renderCaption(true);
+  });
+  descText.addEventListener('click', () => {
+    descHidden = true;
+    renderCaption();
+  });
+  showDescButton.addEventListener('click', () => {
+    descHidden = false;
+    renderCaption();
+  });
   dialog.querySelector('[data-v=unlink]').addEventListener('click', async () => {
     const image = items[index].image;
     try {

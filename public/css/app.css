@@ -835,11 +835,12 @@ legend { font-weight: 700; padding: 0 0.35rem; }
 }
 .viewer-bar { flex-wrap: wrap; }
 .viewer-caption { flex-basis: 100%; margin: 0 auto; color: #fff; }
-.viewer-desc { margin: 0; white-space: pre-wrap; text-align: right; background: linear-gradient(to bottom, transparent 0%, black 100%); height: calc(var(--desc-h) + 32px); align-content: end; }
-.viewer-desc-row { display: flex; align-items: flex-end; justify-content: space-between; gap: 0.75rem; }
-.viewer-desc-row .viewer-desc { flex: 1; min-width: 0; }
+.viewer-desc { margin: 0; white-space: pre-wrap; text-align: right; height: calc(var(--desc-h) + 32px); align-content: end; }
+.viewer-desc-row { display: flex; align-items: flex-end; justify-content: space-between; gap: 0.75rem; background: linear-gradient(to bottom, transparent 0%, black 100%); }
+.viewer-desc-row .viewer-desc { flex: 1; min-width: 0; cursor: pointer; }
+.viewer-desc-row [data-v=desc-show] { margin-left: auto; }
 .viewer-shared { margin: 0; flex: none; max-width: 40%; text-align: left; color: rgb(255 255 255 / 0.75); }
-.viewer-shared .link-btn { background: none; border: 0; padding: 0; display: block; color: inherit; font: inherit; text-decoration: underline; cursor: pointer; }
+.viewer-shared .link-btn { background: none; border: 0; padding: 0 0 0 0.4rem; color: inherit; font: inherit; text-decoration: underline; cursor: pointer; }
 .viewer-desc-form { display: flex; flex-direction: column; gap: 0.5rem; }
 .viewer-desc-form textarea { width: 100%; resize: vertical; }
 .viewer-desc-form .row { justify-content: center; }
