@@ -24,7 +24,7 @@ async function drawVersion(box) {
     try {
       const result = await checkForUpdate();
       if (result === 'latest') toast("You're on the latest version");
-      if (result === 'downloading') toast('Downloading a new version… you can reload when it’s ready');
+      if (result === 'downloading') toast('Downloading a new version…');
     } catch {
       toast('Could not check for updates. Are you offline?', 'error');
     }
