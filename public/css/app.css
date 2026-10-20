@@ -834,7 +834,7 @@ legend { font-weight: 700; padding: 0 0.35rem; }
   background: linear-gradient(transparent, rgb(0 0 0 / 0.6));
 }
 .viewer-bar { flex-wrap: wrap; }
-.viewer-caption { flex-basis: 100%; margin: 0 auto; color: #fff; }
+.viewer-caption { flex-basis: 100%; margin: 0 auto; color: #fff; padding: 0.25rem; }
 .viewer-desc { margin: 0; white-space: pre-wrap; text-align: right; height: calc(var(--desc-h) + 32px); align-content: end; }
 .viewer-desc-row { display: flex; align-items: flex-end; justify-content: space-between; gap: 0.75rem; background: linear-gradient(to bottom, transparent 0%, black 100%); }
 .viewer-desc-row .viewer-desc { flex: 1; min-width: 0; cursor: pointer; }
@@ -854,6 +854,7 @@ legend { font-weight: 700; padding: 0 0.35rem; }
 .viewer-caption { min-width: 0; max-width: 100%; box-sizing: border-box; }
 .viewer-desc { overflow-wrap: anywhere; }
 @media (max-width: 720px) {
+  .viewer-bar { padding: 0.75rem max(0.75rem, env(safe-area-inset-right)) calc(0.75rem + env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left)); }
   .viewer-nav { display: none; } /* swipe instead */
   /* On phones the "shared with" note floats at the top of the viewer; the description stays at the bottom.
      (fixed positions against the viewer itself: its backdrop-filter makes it the containing block) */
