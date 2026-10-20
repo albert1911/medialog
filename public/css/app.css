@@ -884,3 +884,8 @@ legend { font-weight: 700; padding: 0 0.35rem; }
 .toast-error { background: var(--danger); color: #fff; }
 .toast.out { opacity: 0; transform: translateY(6px); }
 @keyframes toast-in { from { opacity: 0; transform: translateY(6px); } }
+
+/* "Open original" only works on touch devices (on desktop the link doesn't open from the viewer) */
+@media (hover: hover) and (pointer: fine) {
+  .viewer [data-v=original] { display: none; }
+}

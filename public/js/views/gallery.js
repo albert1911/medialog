@@ -432,6 +432,11 @@ function openViewer(items, start, onChange) {
     if (url) {
       imgEl.src = url;
       imgEl.hidden = false;
+      if (item.cover) {
+        // a web cover's own link, or the uploaded cover's local copy (that one only opens on phones)
+        originalLink.href = url;
+        originalLink.hidden = false;
+      }
       imgEl.classList.remove('switching');
     } else {
       imgEl.hidden = true;
