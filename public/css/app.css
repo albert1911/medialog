@@ -611,7 +611,7 @@ legend { font-weight: 700; padding: 0 0.35rem; }
   justify-content: flex-end;
   gap: 0.5rem;
   padding: 2rem 0 0.75rem 0;
-  background: linear-gradient(transparent, var(--bg) 30%);
+  background: linear-gradient(transparent, var(--bg) 22%);
 }
 #content-preview { margin-top: 0.5rem; padding: 1rem; }
 
