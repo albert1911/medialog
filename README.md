@@ -1,6 +1,6 @@
 # Medialog
 
-An offline-first PWA for tracking any media (anime, manga, shows, movies, books, games, podcasts…), in the spirit of AniList. There is no backend: data lives in your browser's **IndexedDB** on each device, and can optionally [sync between devices](#sync-between-devices) through a private GitHub repository.
+An offline-first PWA for tracking any media (shows, movies, books, games, podcasts…). There is no backend: data lives in your browser's **IndexedDB** on each device, and can optionally [sync between devices](#sync-between-devices) through a private GitHub repository.
 
 ## Run it
 
@@ -51,7 +51,7 @@ Uploaded images live in a third store, `covers` (`id` = `<sha256>.<ext>`, `blob`
 
 A deleted record is kept as a small tombstone (`id`, `created_at`, `updated_at`, `deleted_at`) so the deletion reaches your other devices. Tombstones are hidden everywhere in the app and left out of exports.
 
-### Tracking rules (AniList-style)
+### Tracking rules
 - Raising progress on a *Planning* entry moves it to *In Progress*.
 - Reaching the last chapter or episode marks the entry *Completed*.
 - Setting status to *Completed* fills progress to the max.
@@ -94,7 +94,7 @@ Medialog can keep your laptop and phone in sync through a file in a **private** 
 - Uploaded cover images are stored once each in `covers/` in the data repo, with the same names as on the device, so the main file (`medialog.json`) stays small. Uploading many covers for the first time takes a while (about one per second, to stay within GitHub's limits); downloading them on another device runs 4 at a time.
 - Every sync that changes something is a commit in the data repo, so the history doubles as a backup you can roll back to.
 - The token is stored only in that device's browser. If a device is lost, delete the token on GitHub; your other devices keep working after you give them a new one.
-- A **⚠ Sync** button appears in the header when something needs attention, such as an expired token.
+- A **Sync** button appears in the header when something needs attention, such as an expired token.
 - If you already copied data between devices with Export/Import before turning on sync, the copies are different records and would show up twice. Keep the data on one device, and on the other use **Delete all data** *before* connecting it.
 
 ## Gallery images (Cloudinary)
@@ -135,7 +135,7 @@ Each entry can have a gallery. Gallery images are stored on [Cloudinary](https:/
 Every change is saved to IndexedDB immediately. Backups protect you if the browser's data gets wiped.
 
 - **Auto-backup** (Settings → Auto-backup, Chrome/Edge desktop): pick a file once, ideally in a synced folder like OneDrive. Medialog rewrites it about 2 seconds after your last change, and right away when you close or hide the app. Several quick changes become one write.
-  - Browsers usually ask for file permission again in each new session. When that happens, a **⚠ Backup** button appears in the header, and one click resumes.
+  - Browsers usually ask for file permission again in each new session. When that happens, a **Backup** button appears in the header, and one click resumes.
   - Automatic writes never replace the file with an *empty* database, so "Delete all data" stays recoverable.
 - **Manual**: Settings → Export JSON / Import (merge or replace). This works in every browser. The file includes your uploaded images (as base64), so one file restores everything. Importing a backup also brings back items you had deleted.
 - Settings also has a button that asks the browser to keep your data permanently.
