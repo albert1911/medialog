@@ -135,7 +135,7 @@ Each entry can have a gallery. Gallery images are stored on [Cloudinary](https:/
 Every change is saved to IndexedDB immediately. Backups protect you if the browser's data gets wiped.
 
 - **Auto-backup** (Settings → Auto-backup, Chrome/Edge desktop): pick a file once, ideally in a synced folder like OneDrive. Medialog rewrites it about 2 seconds after your last change, and right away when you close or hide the app. Several quick changes become one write.
-  - Browsers usually ask for file permission again in each new session. When that happens, a **⚠ Backup** button appears in the header, and one click resumes.
+  - Browsers usually ask for file permission again in each new session. When that happens, a **Backup** button appears in the header, and one click resumes.
   - Automatic writes never replace the file with an *empty* database, so "Delete all data" stays recoverable.
 - **Manual**: Settings → Export JSON / Import (merge or replace). This works in every browser. The file includes your uploaded images (as base64), so one file restores everything. Importing a backup also brings back items you had deleted.
 - Settings also has a button that asks the browser to keep your data permanently.
