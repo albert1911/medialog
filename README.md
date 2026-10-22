@@ -1,6 +1,6 @@
 # Medialog
 
-An offline-first PWA for tracking any media (anime, manga, shows, movies, books, games, podcasts…), in the spirit of AniList. There is no backend: data lives in your browser's **IndexedDB** on each device, and can optionally [sync between devices](#sync-between-devices) through a private GitHub repository.
+An offline-first PWA for tracking any media (shows, movies, books, games, podcasts…). There is no backend: data lives in your browser's **IndexedDB** on each device, and can optionally [sync between devices](#sync-between-devices) through a private GitHub repository.
 
 ## Run it
 
