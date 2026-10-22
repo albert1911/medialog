@@ -606,11 +606,11 @@ legend { font-weight: 700; padding: 0 0.35rem; }
 .form-fields { display: flex; flex-direction: column; gap: 1rem; min-width: 0; }
 .form-actions {
   position: sticky;
-  bottom: 0;
+  bottom: -3rem;
   display: flex;
   justify-content: flex-end;
   gap: 0.5rem;
-  padding: 0.75rem 0;
+  padding: 2rem 0 0.75rem 0;
   background: linear-gradient(transparent, var(--bg) 30%);
 }
 #content-preview { margin-top: 0.5rem; padding: 1rem; }
@@ -619,7 +619,7 @@ legend { font-weight: 700; padding: 0 0.35rem; }
   .form-layout { grid-template-columns: 1fr; gap: 1.25rem; }
   .form-cover { position: static; display: grid; grid-template-columns: 110px 1fr; gap: 0.75rem; }
   .form-cover #cover-preview { grid-row: span 3; }
-  .form-actions { bottom: calc(3.4rem + env(safe-area-inset-bottom)); }
+  .form-actions { bottom: calc(3.4rem + env(safe-area-inset-bottom) - 5rem); }
 }
 
 /* ---------------------------------------------------------------- sources */

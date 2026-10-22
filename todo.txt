@@ -2,3 +2,8 @@
 - add an option to click on the image to zoom when previewing gallery image (desktop)
 - (minor) in mobile when previewing gallery image, I see that currently we are using scale 2.5, we need some sort of checks for when the image width (.viewer-img) is smaller than the .viewer itself, make it can't traslate past the image with a padding of 4px (if this thing is even possible)
 - does backup also backup image from cloudinary and put it in a zip folder of sort
+- bug after downloading new version on mobile then press the reload button, the bottom part of the page is cropped, also happen when going back from the external url for image and the gallery image is not loaded correctly for a moment; close the app and reopen it again fixed it
+- also delete from cloudinary if possible when deleting gallery
+- a way to backup cloudinary images grouped cleanly into its specific folder
+- listed tags is only after sources, so only show tag that is on those sources
+- inconsistent ui when selecting all for sources and tags
