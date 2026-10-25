@@ -38,6 +38,38 @@ function itemsFor(entry, images) {
   return items;
 }
 
+const fileSafe = (text) => text.replace(/[\\/:*?"<>|\u0000-\u001f]/g, '_').trim().slice(0, 60);
+
+// Asks what to do before deleting a whole gallery. Resolves 'backup', 'delete' or null (cancelled).
+function askDeleteGallery(count) {
+  return new Promise((resolve) => {
+    const dialog = document.createElement('dialog');
+    dialog.className = 'choice-dialog';
+    dialog.innerHTML = `
+      <h2>Delete this gallery?</h2>
+      <p class="muted">${count} image${count === 1 ? '' : 's'} will be removed from the gallery on every device. This can't be undone.
+        Download a backup first?</p>
+      <div class="stack">
+        <button type="button" class="btn btn-primary" data-choice="backup">Back up, then delete</button>
+        <button type="button" class="btn btn-danger-ghost" data-choice="delete">Delete without backup</button>
+        <button type="button" class="btn" data-choice="">Cancel</button>
+      </div>`;
+    document.body.append(dialog);
+    let choice = null;
+    dialog.addEventListener('click', (e) => {
+      const button = e.target.closest('[data-choice]');
+      if (!button) return;
+      choice = button.dataset.choice || null;
+      dialog.close();
+    });
+    dialog.addEventListener('close', () => {
+      dialog.remove();
+      resolve(choice);
+    });
+    dialog.showModal();
+  });
+}
+
 export async function mountGallery(section, entry) {
   let items = [];
   let images = [];
@@ -70,6 +102,7 @@ export async function mountGallery(section, entry) {
             <button type="button" class="btn btn-small" data-g="share" ${selected.size < 2 ? 'disabled' : ''}>Share description (${selected.size})</button>
             <button type="button" class="btn btn-small" data-g="select">Cancel</button>` : ''}
           ${images.length && idle ? '<button type="button" class="btn btn-small" data-g="backup">Download</button>' : ''}
+          ${images.length && idle ? '<button type="button" class="btn btn-small btn-danger-ghost" data-g="delete-all">Delete gallery</button>' : ''}
           ${canAdd && idle ? '<label class="btn btn-small">＋ Add images<input type="file" accept="image/*" multiple hidden></label>' : ''}
         </div>
       </div>
@@ -80,7 +113,8 @@ export async function mountGallery(section, entry) {
             <button type="button" class="gallery-tile${item.image && selected.has(item.image.id) ? ' selected' : ''}" data-index="${i}" ${item.image && !item.cover ? `data-image="${esc(item.image.id)}"` : ''}
               aria-label="${item.cover ? 'Open cover image' : `Open image ${i + 1}`}">
               <img alt="" hidden draggable="false">
-              ${item.cover ? '<span class="gallery-badge">Cover</span>' : ''}
+              ${item.cover && item.image ? '<span class="gallery-badge">Cover</span>' : ''}
+              ${item.cover && !item.image ? '<span class="gallery-badge local" title="Only stored on your devices, not uploaded to the gallery">Cover · local</span>' : ''}
               ${item.image?.pending ? '<span class="gallery-badge">Uploading…</span>' : ''}
               ${item.image?.desc_group ? '<span class="gallery-link" title="Shares its description" aria-label="Shares its description">🔗</span>' : ''}
               ${reordering && item.image && !item.cover ? `
@@ -160,11 +194,36 @@ export async function mountGallery(section, entry) {
       const button = event.currentTarget;
       button.disabled = true;
       try {
-        const name = `${entry.title.replace(/[\\/:*?"<>|\u0000-\u001f]/g, '_').trim().slice(0, 60) || 'gallery'} - gallery.zip`;
+        const name = `${fileSafe(entry.title) || 'gallery'} - gallery.zip`;
         const { count, skipped } = await G.downloadBackup([{ entry, images }], name, (n, total) => (button.textContent = `${n} / ${total}`));
         toast(count ? `Saved ${count} image${count === 1 ? '' : 's'}${skipped ? `, ${skipped} not available on this device` : ''}` : 'No images available to download', count ? 'success' : 'error');
       } catch (err) {
         toast(`Could not create the download: ${err.message}`, 'error');
+      }
+      draw();
+    });
+    section.querySelector('[data-g=delete-all]')?.addEventListener('click', async (event) => {
+      const choice = await askDeleteGallery(images.length);
+      if (!choice) return;
+      const button = event.currentTarget;
+      button.disabled = true;
+      try {
+        if (choice === 'backup') {
+          const { count, skipped } = await G.downloadBackup([{ entry, images }], `${fileSafe(entry.title) || 'gallery'} - gallery.zip`, (n, total) => (button.textContent = `Saving ${n} / ${total}`));
+          if ((skipped || !count) && !confirm(`${skipped || images.length} image${(skipped || images.length) === 1 ? ' was' : 's were'} not available on this device, so the backup doesn't have ${skipped === 1 ? 'it' : 'them'}. Delete the gallery anyway?`)) {
+            return draw();
+          }
+        }
+        let kept = 0; // images that stay on Cloudinary (it couldn't be deleted from here)
+        for (const [i, image] of images.entries()) {
+          button.textContent = `Deleting ${i + 1} / ${images.length}`;
+          if (!(await G.deleteImage(image))) kept++;
+        }
+        toast(kept
+          ? `Gallery deleted. ${kept} image${kept === 1 ? ' stays' : 's stay'} in your Cloudinary Media Library until you remove ${kept === 1 ? 'it' : 'them'} there.`
+          : 'Gallery deleted', 'success', kept ? 6000 : 3000);
+      } catch (err) {
+        toast(`Could not delete the gallery: ${err.message}`, 'error');
       }
       draw();
     });
@@ -430,7 +489,7 @@ function openViewer(items, start, onChange) {
     index = (i + items.length) % items.length;
     const item = items[index];
     setZoom(1, 0, 0); // every image starts un-zoomed
-    dialog.querySelector('.viewer-count').textContent = `${item.cover ? 'Cover · ' : ''}${index + 1} / ${items.length}`;
+    dialog.querySelector('.viewer-count').textContent = `${item.cover ? (item.image ? 'Cover · ' : 'Cover (local) · ') : ''}${index + 1} / ${items.length}`;
     dialog.querySelectorAll('.viewer-nav').forEach((b) => (b.hidden = items.length < 2));
     deleteButton.hidden = !item.image; // the display-only cover is changed via Edit, not here
     const original = item.image && G.originalUrl(item.image); // only once it's on Cloudinary

@@ -715,6 +715,7 @@ legend { font-weight: 700; padding: 0 0.35rem; }
   font-size: 0.7rem;
   font-weight: 600;
 }
+.gallery-badge.local { background: rgb(0 0 0 / 0.45); border: 1px dashed rgb(255 255 255 / 0.7); font-weight: 500; }
 
 /* Reorder mode */
 .reorder-hint { margin: -0.25rem 0 0.6rem; }
@@ -915,3 +916,8 @@ legend { font-weight: 700; padding: 0 0.35rem; }
 @media (hover: hover) and (pointer: fine) {
   .viewer [data-v=original] { display: none; }
 }
+
+.choice-dialog { max-width: min(92vw, 28rem); padding: 1.25rem; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); color: var(--text); }
+.choice-dialog::backdrop { background: rgb(0 0 0 / 0.5); }
+.choice-dialog h2 { margin: 0 0 0.5rem; font-size: 1.1rem; }
+.choice-dialog .stack { display: grid; gap: 8px; margin-top: 1rem; }
