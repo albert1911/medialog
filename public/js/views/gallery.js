@@ -69,6 +69,7 @@ export async function mountGallery(section, entry) {
           ${selecting ? `
             <button type="button" class="btn btn-small" data-g="share" ${selected.size < 2 ? 'disabled' : ''}>Share description (${selected.size})</button>
             <button type="button" class="btn btn-small" data-g="select">Cancel</button>` : ''}
+          ${images.length && idle ? '<button type="button" class="btn btn-small" data-g="backup">Download</button>' : ''}
           ${canAdd && idle ? '<label class="btn btn-small">＋ Add images<input type="file" accept="image/*" multiple hidden></label>' : ''}
         </div>
       </div>
@@ -153,6 +154,18 @@ export async function mountGallery(section, entry) {
         toast(`Could not share the description: ${err.message}`, 'error');
       }
       selecting = false;
+      draw();
+    });
+    section.querySelector('[data-g=backup]')?.addEventListener('click', async (event) => {
+      const button = event.currentTarget;
+      button.disabled = true;
+      try {
+        const name = `${entry.title.replace(/[\\/:*?"<>|\u0000-\u001f]/g, '_').trim().slice(0, 60) || 'gallery'} - gallery.zip`;
+        const { count, skipped } = await G.downloadBackup([{ entry, images }], name, (n, total) => (button.textContent = `${n} / ${total}`));
+        toast(count ? `Saved ${count} image${count === 1 ? '' : 's'}${skipped ? `, ${skipped} not available on this device` : ''}` : 'No images available to download', count ? 'success' : 'error');
+      } catch (err) {
+        toast(`Could not create the download: ${err.message}`, 'error');
+      }
       draw();
     });
     if (reordering) enableDragging(section.querySelector('.gallery-grid'));

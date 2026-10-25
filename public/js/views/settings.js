@@ -1,4 +1,4 @@
-import { clearAll, counts, exportData, importData } from '../db.js';
+import { Entries, Gallery, clearAll, counts, exportData, importData } from '../db.js';
 import { copyText, downloadFile, esc, fmtDate, fmtDateTime, formatBytes, todayISO, toast } from '../util.js';
 import { canInstall, checkForUpdate, getVersion, isStandalone, isUpdateReady, promptInstall } from '../pwa.js';
 import * as AutoBackup from '../autobackup.js';
@@ -71,6 +71,7 @@ function drawGallery(box) {
     <div class="row">
       ${error ? '<button type="button" class="btn" data-g="retry">Retry uploads</button>' : ''}
       <button type="button" class="btn" data-g="copy">Copy preset name</button>
+      <button type="button" class="btn" data-g="backup">Download all images</button>
       <button type="button" class="btn btn-danger-ghost" data-g="off">Disconnect</button>
     </div>
     ${G.hasAdmin()
@@ -100,6 +101,24 @@ function drawGallery(box) {
     } catch (err) {
       toast(err.message, 'error', 6000);
     }
+  });
+  // One zip with a folder per entry (to back up just one entry, use Download on its page).
+  box.querySelector('[data-g=backup]').addEventListener('click', async (event) => {
+    const button = event.currentTarget;
+    button.disabled = true;
+    try {
+      const groups = [];
+      for (const entry of await Entries.all()) {
+        const images = await Gallery.byEntry(entry.id);
+        if (images.length) groups.push({ entry, images });
+      }
+      const { count, skipped } = await G.downloadBackup(groups, `medialog-gallery-${todayISO()}.zip`, (n, total) => (button.textContent = `${n} / ${total}`));
+      toast(count ? `Saved ${count} image${count === 1 ? '' : 's'}${skipped ? `, ${skipped} not available on this device` : ''}` : 'No images available to download', count ? 'success' : 'error');
+    } catch (err) {
+      toast(`Could not create the download: ${err.message}`, 'error');
+    }
+    button.disabled = false;
+    button.textContent = 'Download all images';
   });
   box.querySelector('[data-g=admin-off]')?.addEventListener('click', () => G.clearAdmin());
   box.querySelector('[data-g=retry]')?.addEventListener('click', () => G.uploadPending());

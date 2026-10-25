@@ -152,6 +152,52 @@ export async function squareThumb(blob, size = 320) {
   return canvasToJpeg(canvas, 0.8);
 }
 
+// ---- zip (store only: images are already compressed). files: [{ name, blob }] -> Blob.
+const CRC_TABLE = Array.from({ length: 256 }, (_, n) => {
+  let c = n;
+  for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+  return c >>> 0;
+});
+const crc32 = (bytes) => {
+  let crc = 0xffffffff;
+  for (const b of bytes) crc = CRC_TABLE[(crc ^ b) & 0xff] ^ (crc >>> 8);
+  return (crc ^ 0xffffffff) >>> 0;
+};
+
+export async function makeZip(files) {
+  const now = new Date();
+  const time = (now.getHours() << 11) | (now.getMinutes() << 5) | (now.getSeconds() >> 1);
+  const date = ((now.getFullYear() - 1980) << 9) | ((now.getMonth() + 1) << 5) | now.getDate();
+  const parts = [];
+  const central = [];
+  let offset = 0;
+  for (const { name, blob } of files) {
+    const nameBytes = new TextEncoder().encode(name);
+    const crc = crc32(new Uint8Array(await blob.arrayBuffer()));
+    const header = new DataView(new ArrayBuffer(30));
+    [[0, 0x04034b50, 4], [4, 20, 2], [6, 0x0800, 2], [8, 0, 2], [10, time, 2], [12, date, 2], [14, crc, 4],
+      [18, blob.size, 4], [22, blob.size, 4], [26, nameBytes.length, 2], [28, 0, 2]]
+      .forEach(([at, value, size]) => (size === 4 ? header.setUint32(at, value, true) : header.setUint16(at, value, true)));
+    parts.push(header, nameBytes, blob);
+
+    const entry = new DataView(new ArrayBuffer(46));
+    [[0, 0x02014b50, 4], [4, 20, 2], [6, 20, 2], [8, 0x0800, 2], [10, 0, 2], [12, time, 2], [14, date, 2], [16, crc, 4],
+      [20, blob.size, 4], [24, blob.size, 4], [28, nameBytes.length, 2], [30, 0, 2], [32, 0, 2], [34, 0, 2],
+      [36, 0, 2], [38, 0, 4], [42, offset, 4]]
+      .forEach(([at, value, size]) => (size === 4 ? entry.setUint32(at, value, true) : entry.setUint16(at, value, true)));
+    central.push(entry, nameBytes);
+    offset += 30 + nameBytes.length + blob.size;
+  }
+  const centralSize = central.reduce((sum, p) => sum + (p.byteLength ?? p.length), 0);
+  const end = new DataView(new ArrayBuffer(22));
+  end.setUint32(0, 0x06054b50, true);
+  end.setUint16(8, files.length, true);
+  end.setUint16(10, files.length, true);
+  end.setUint32(12, centralSize, true);
+  end.setUint32(16, offset, true);
+  return new Blob([...parts, ...central, end], { type: 'application/zip' });
+}
+
 export function bytesToBase64(bytes) {
   let binary = '';
   for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));

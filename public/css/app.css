@@ -603,7 +603,7 @@ legend { font-weight: 700; padding: 0 0.35rem; }
 .form { display: flex; flex-direction: column; gap: 1.25rem; }
 .form.narrow { max-width: 640px; }
 .form-layout { display: grid; grid-template-columns: 220px 1fr; gap: 2rem; align-items: start; }
-.form-cover { display: flex; flex-direction: column; gap: 0.75rem; position: sticky; top: 1rem; }
+.form-cover { display: flex; flex-direction: column; gap: 0.75rem; position: sticky; top: 0; }
 .form-fields { display: flex; flex-direction: column; gap: 1rem; min-width: 0; }
 .form-actions {
   position: sticky;

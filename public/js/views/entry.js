@@ -215,7 +215,6 @@ export async function renderEntryForm(view, id, query) {
       <div class="form-layout">
         <div class="form-cover">
           <div id="cover-preview"></div>
-          <p class="muted small" id="cover-hint"></p>
           <label class="field"><span>Cover image URL</span>
             <input name="cover_url" type="text" inputmode="url" placeholder="https://…" value="${esc(uploaded ? '' : v.cover_image)}">
           </label>
@@ -223,9 +222,8 @@ export async function renderEntryForm(view, id, query) {
             <label class="btn btn-small">Upload image<input type="file" id="cover-file" accept="image/*" hidden></label>
             <button type="button" class="btn btn-small btn-ghost" id="cover-clear">Remove</button>
           </div>
-          <p class="muted small">Uploaded images are stored on this device, so they work offline.</p>
           ${oldCover ? `<label class="check"><input type="checkbox" name="keep_old_cover" checked>
-            <span>Keep the old cover in the gallery if I change it</span></label>` : ''}
+            <span>Keep old cover in gallery</span></label>` : ''}
         </div>
 
         <div class="form-fields">
@@ -297,17 +295,9 @@ export async function renderEntryForm(view, id, query) {
   const urlInput = form.elements.cover_url;
   const preview = view.querySelector('#cover-preview');
 
-  const hint = view.querySelector('#cover-hint');
-  const HINTS = {
-    portrait: 'Portrait: fills the card.',
-    square: 'Square: shown whole on cards over a blurred background.',
-    landscape: 'Landscape: shown whole on cards, and as a banner on the entry page.',
-  };
   const drawCover = () => {
     const cover_image = pendingUrl || uploaded || urlInput.value.trim();
-    preview.innerHTML = coverHTML({ title: form.elements.title.value || '?', cover_image, cover_aspect: coverAspect }, 'cover-lg cover-natural');
-    hint.textContent = cover_image && coverAspect ? HINTS[coverShape(coverAspect)] : '';
-  };
+    preview.innerHTML = coverHTML({ title: form.elements.title.value || '?', cover_image, cover_aspect: coverAspect }, 'cover-lg cover-natural');  };
   drawCover();
 
   let probeSeq = 0;

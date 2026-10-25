@@ -7,7 +7,7 @@
 // - Self-healing: if a device finds an image gone from Cloudinary (e.g. you deleted a leaked one),
 //   it flags it; a device that still has the file re-uploads it under a new, unknown link.
 import { Gallery, GalleryCache, Meta, changes } from './db.js';
-import { imageToBlob, squareThumb } from './util.js';
+import { downloadFile, imageToBlob, makeZip, squareThumb } from './util.js';
 
 const CONFIG_KEY = 'gallery.config'; // { cloud, preset }: this device
 const TOKENS_KEY = 'gallery.deleteTokens'; // { [image id]: { token, expires } }: this device
@@ -207,6 +207,42 @@ export async function imageUrl(img, size) {
   const url = URL.createObjectURL(blob);
   objectUrls.set(key, url);
   return url;
+}
+
+// ---------------------------------------------------------------- backup
+
+// Zip of the gallery images, one folder per entry, named in gallery order (the cover first).
+// `groups`: [{ entry, images }]. Images this device can't get right now are skipped.
+// Returns { blob, count, skipped }, or a null blob if there was nothing to save.
+export async function backupZip(groups, onProgress = () => {}) {
+  const safe = (text) => text.replace(/[\\/:*?"<>|\u0000-\u001f]/g, '_').trim().slice(0, 60) || 'Untitled';
+  const total = groups.reduce((sum, g) => sum + g.images.length, 0);
+  const files = [];
+  let skipped = 0;
+  for (const { entry, images } of groups) {
+    const folder = `${safe(entry.title)} [${entry.id.slice(0, 8)}]`;
+    const pad = String(images.length).length;
+    let n = 0;
+    for (const img of images) {
+      n++;
+      onProgress(files.length + skipped + 1, total);
+      const blob = (await GalleryCache.get(img.id, 'full')) ?? (img.public_id && img.cloud ? (await download(img, 'full')).blob : null);
+      if (!blob) {
+        skipped++;
+        continue;
+      }
+      const label = String(n).padStart(pad, '0') + (img.is_cover ? ' - cover' : '');
+      files.push({ name: `${folder}/${label}.${img.format ?? 'jpg'}`, blob });
+    }
+  }
+  return { blob: files.length ? await makeZip(files) : null, count: files.length, skipped };
+}
+
+// Builds the zip and saves it as `filename`. Returns { count, skipped }.
+export async function downloadBackup(groups, filename, onProgress) {
+  const { blob, count, skipped } = await backupZip(groups, onProgress);
+  if (blob) downloadFile(filename, blob, 'application/zip');
+  return { count, skipped };
 }
 
 // ---------------------------------------------------------------- description
