@@ -1,5 +1,5 @@
 import { Covers, Entries, Gallery, Sources, ValidationError, isCoverRef } from '../db.js';
-import { addImages, getConfig } from '../gallery.js';
+import { addImages, deleteImage, getConfig } from '../gallery.js';
 import { mountGallery } from './gallery.js';
 import {
   STATUSES, byText, debounce, esc, fmtDate, fmtDateTime,
@@ -193,6 +193,7 @@ export async function renderEntryForm(view, id, query) {
   const [sources, entries] = await Promise.all([Sources.all(), Entries.all()]);
   const types = [...new Set(entries.map((e) => e.type))].sort(byText);
   const tags = tagList(entries);
+  const oldCover = editing ? (await Gallery.byEntry(id)).find((g) => g.is_cover) : null; // original copy of the current cover
   const v = existing ?? {
     status: 'planning',
     progress: 0,
@@ -223,6 +224,8 @@ export async function renderEntryForm(view, id, query) {
             <button type="button" class="btn btn-small btn-ghost" id="cover-clear">Remove</button>
           </div>
           <p class="muted small">Uploaded images are stored on this device, so they work offline.</p>
+          ${oldCover ? `<label class="check"><input type="checkbox" name="keep_old_cover" checked>
+            <span>Keep the old cover in the gallery if I change it</span></label>` : ''}
         </div>
 
         <div class="form-fields">
@@ -371,6 +374,8 @@ export async function renderEntryForm(view, id, query) {
     event.preventDefault();
     const data = Object.fromEntries(new FormData(form));
     data.tags = getTags();
+    const keepOldCover = !oldCover || Boolean(data.keep_old_cover);
+    delete data.keep_old_cover;
     const originalFile = pendingFile;
     try {
       if (pendingBlob) {
@@ -387,12 +392,17 @@ export async function renderEntryForm(view, id, query) {
     try {
       const saved = await Entries.save(data, editing ? id : null);
       toast(editing ? 'Changes saved' : 'Entry created', 'success');
-      // A changed cover no longer matches the gallery's original copy, which becomes a normal image.
-      if (editing && (data.cover_image || '') !== (v.cover_image || '')) {
-        for (const image of await Gallery.byEntry(saved.id)) if (image.is_cover) await Gallery.update(image.id, { is_cover: false });
+      // A changed cover no longer matches the gallery's original copy: it becomes a normal image,
+      // or is deleted if you chose not to keep it.
+      if (oldCover && (originalFile || (data.cover_image || '') !== (v.cover_image || ''))) {
+        for (const image of await Gallery.byEntry(saved.id)) {
+          if (!image.is_cover) continue;
+          if (keepOldCover) await Gallery.update(image.id, { is_cover: false });
+          else await deleteImage(image);
+        }
       }
-      // New entries also keep the original cover in the gallery (and on Cloudinary).
-      if (!editing && originalFile && getConfig()) {
+      // A newly picked cover file also gets its original copy in the gallery (and on Cloudinary).
+      if (originalFile && getConfig()) {
         await addImages(saved.id, [originalFile], { cover: true }).catch((err) => toast(`Could not add the cover to the gallery: ${err.message}`, 'error'));
       }
       location.hash = `#/entries/${saved.id}`;

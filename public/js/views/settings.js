@@ -74,9 +74,10 @@ function drawGallery(box) {
       <button type="button" class="btn btn-danger-ghost" data-g="off">Disconnect</button>
     </div>
     ${G.hasAdmin()
-      ? `<p class="ok">✓ Deleting an image also removes it from Cloudinary.</p>
+      ? `<hr style="border-style: solid; margin: 1rem 0;">
+         <p class="ok">✓ Deleting an image also removes it from Cloudinary.</p>
          <div class="row"><button type="button" class="btn btn-danger-ghost" data-g="admin-off">Remove API secret</button></div>`
-      : `<details>
+      : `<details class="cloudinary-delete">
            <summary>Also delete from Cloudinary (optional)</summary>
            <form id="admin-form" class="sync-form" novalidate>
              <p class="muted small">Add your API key and secret (Cloudinary → Settings → API Keys) so deleting an image here removes the file too.

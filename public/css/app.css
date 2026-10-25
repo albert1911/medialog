@@ -234,6 +234,7 @@ input, select, textarea {
 }
 textarea { resize: vertical; min-height: 80px; }
 input[type="radio"], input[type="checkbox"] { width: auto; min-height: 0; }
+.check { display: flex; align-items: center; gap: 8px; font-size: 0.9rem; }
 input:focus, select:focus, textarea:focus, .btn:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
@@ -643,6 +644,9 @@ legend { font-weight: 700; padding: 0 0.35rem; }
 .sync-form .field { width: 100%; }
 .radio-group { border: 0; padding: 0; display: flex; flex-direction: column; gap: 0.35rem; }
 .radio-group label { display: flex; gap: 0.5rem; align-items: center; }
+
+.settings details.cloudinary-delete { margin-top: 0.75rem; }
+.settings details.cloudinary-delete summary { cursor: pointer; margin-bottom: 0.25rem; }
 
 .app-version { margin-top: 1rem; padding-top: 0.75rem; border-top: 1px solid var(--border); }
 .app-version p { margin-bottom: 0.5rem; }
