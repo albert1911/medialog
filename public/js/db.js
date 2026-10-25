@@ -18,7 +18,7 @@
 //
 // Gallery: gallery_images holds one small synced record per image (the image itself is on
 // Cloudinary); gallery_cache keeps downloaded/uploaded image files on this device only.
-import { STATUS_VALUES, base64ToBytes, bytesToBase64, isISODate, todayISO } from './util.js';
+import { STATUS_VALUES, base64ToBytes, bytesToBase64, isISODate, isSafeId, todayISO } from './util.js';
 
 const DB_NAME = 'medialog';
 const DB_VERSION = 5;
@@ -281,7 +281,7 @@ function normalizeEntry(data) {
     release_date: date(data, 'release_date', { label: 'Release date' }),
     chapter_count,
     content: text(data, 'content', { label: 'Content' }),
-    media_source_id: data.media_source_id ? String(data.media_source_id) : null,
+    media_source_id: isSafeId(String(data.media_source_id ?? '')) ? String(data.media_source_id) : null,
     status: STATUS_VALUES.includes(data.status) ? data.status : 'planning',
     progress,
     score,
@@ -430,7 +430,7 @@ export const Entries = {
 const intOrNull = (v) => (Number.isInteger(v) && v > 0 ? v : null);
 
 function normalizeGalleryImage(data) {
-  if (typeof data.entry_id !== 'string' || !data.entry_id) throw new Error('Gallery image without an entry.');
+  if (!isSafeId(data.entry_id)) throw new Error('Gallery image without an entry.');
   return {
     entry_id: data.entry_id,
     cloud: typeof data.cloud === 'string' && /^[\w-]+$/.test(data.cloud) ? data.cloud : null,
@@ -441,6 +441,7 @@ function normalizeGalleryImage(data) {
     height: intOrNull(data.height),
     pending: Boolean(data.pending), // added on a device but not uploaded to Cloudinary yet
     missing: Boolean(data.missing), // a device found it gone from Cloudinary; one with the file re-uploads it
+    is_cover: Boolean(data.is_cover), // the original copy of the entry's cover: always first, can't be reordered
     position: Number.isFinite(data.position) ? data.position : null, // gallery order (see galleryKey)
     description: typeof data.description === 'string' && data.description.trim() ? data.description.trim().slice(0, 1000) : null,
     desc_group: typeof data.desc_group === 'string' && data.desc_group ? data.desc_group : null, // images with the same id share one description
@@ -644,7 +645,7 @@ export async function importData(data, mode = 'merge') {
   const replace = mode === 'replace';
   const idMap = new Map();
   const idFor = (oldId) => {
-    if (!idMap.has(oldId)) idMap.set(oldId, typeof oldId === 'string' && oldId ? oldId : newId());
+    if (!idMap.has(oldId)) idMap.set(oldId, isSafeId(oldId) ? oldId : newId());
     return idMap.get(oldId);
   };
 
@@ -669,7 +670,7 @@ export async function importData(data, mode = 'merge') {
     .map((c) => ({ id: c.id, blob: new Blob([base64ToBytes(c.data)], { type: mimeOfCover(c.id) }), created_at: now }));
   for (const entry of entries) {
     const raw = entry.media_source_id;
-    entry.media_source_id = raw == null ? null : idMap.get(raw) ?? idMap.get(Number(raw)) ?? (/^\d+$/.test(raw) ? null : raw);
+    entry.media_source_id = raw == null ? null : idMap.get(raw) ?? idMap.get(Number(raw)) ?? (isSafeId(raw) && !/^\d+$/.test(raw) ? raw : null);
   }
   const entryIds = new Set(entries.map((e) => e.id));
   const gallery = prepare(Array.isArray(data.gallery_images) ? data.gallery_images : [], normalizeGalleryImage, 'Gallery image')

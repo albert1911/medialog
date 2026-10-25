@@ -7,3 +7,8 @@
 - a way to backup cloudinary images grouped cleanly into its specific folder
 - listed tags is only after sources, so only show tag that is on those sources
 - inconsistent ui when selecting all for sources and tags
+- when hide description also removes the background color, only have the background on the show description button
+
+---
+
+- also upload the original copy of cover in gallery and cloudinary, so we can stop showing the original cover on gallery instead, but still have the "cover" mark for the first one, it can't be reordered like before, (only upload for new entry, old entry can stay they were now, and still saves the cover as per usual just do extra step to upload to cloudinary too and do the handling on gallery)

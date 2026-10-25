@@ -87,8 +87,8 @@ export const progressPct = (e) => (e.chapter_count > 0 ? Math.min(100, (e.progre
 export const canIncrement = (e) => e.chapter_count === 0 || e.progress < e.chapter_count;
 
 export function entryCard(e) {
-  return `<article class="card" data-id="${e.id}">
-    <a class="card-link" href="#/entries/${e.id}" aria-label="${esc(e.title)}"></a>
+  return `<article class="card" data-id="${esc(e.id)}">
+    <a class="card-link" href="#/entries/${esc(e.id)}" aria-label="${esc(e.title)}"></a>
     ${coverHTML(e)}
     <span class="badge status-${e.status}">${statusLabel(e.status)}</span>
     <div class="card-body">

@@ -62,7 +62,7 @@ export async function renderSourcesList(view) {
             </div>
             <div class="source-actions">
               ${href ? `<a class="btn btn-small btn-ghost" href="${esc(href)}" target="_blank" rel="noopener noreferrer">Visit ↗</a>` : ''}
-              <a class="btn btn-small" href="#/sources/${s.id}/edit">Edit</a>
+              <a class="btn btn-small" href="#/sources/${esc(s.id)}/edit">Edit</a>
             </div>
           </article>`;
         }).join('')
@@ -92,7 +92,7 @@ export async function renderSourceDetail(view, id) {
       </div>
       <div class="row">
         ${href ? `<a class="btn btn-ghost" href="${esc(href)}" target="_blank" rel="noopener noreferrer">Visit ↗</a>` : ''}
-        <a class="btn" href="#/sources/${source.id}/edit">Edit</a>
+        <a class="btn" href="#/sources/${esc(source.id)}/edit">Edit</a>
         <button type="button" class="btn btn-danger-ghost" id="delete">Delete</button>
       </div>
     </div>
@@ -101,7 +101,7 @@ export async function renderSourceDetail(view, id) {
 
     <div class="page-head sub">
       <h2>Entries <span class="muted" id="count"></span></h2>
-      <a class="btn btn-small btn-primary" href="#/entries/new?source=${source.id}">+ Add entry from this source</a>
+      <a class="btn btn-small btn-primary" href="#/entries/new?source=${esc(source.id)}">+ Add entry from this source</a>
     </div>
     <div class="cards" id="grid"></div>
     <p class="muted small timestamps">Added ${fmtDateTime(source.created_at)} · Updated ${fmtDateTime(source.updated_at)}</p>`;

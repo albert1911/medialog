@@ -11,6 +11,7 @@ import { imageToBlob, squareThumb } from './util.js';
 
 const CONFIG_KEY = 'gallery.config'; // { cloud, preset }: this device
 const TOKENS_KEY = 'gallery.deleteTokens'; // { [image id]: { token, expires } }: this device
+const ADMIN_KEY = 'gallery.admin'; // { key, secret }: this device only, never exported or synced
 const FULL_MAX_SIDE = 2048;
 // The only transformation the app requests (allow it if you turn on "strict transformations").
 export const THUMB_TRANSFORMATION = 'c_fill,g_center,w_320,h_320,q_80,f_jpg';
@@ -19,15 +20,18 @@ const DELETE_TOKEN_TTL_MS = 9 * 60 * 1000; // Cloudinary's tokens are valid for 
 export const status = new EventTarget(); // "change": config or upload progress changed
 
 let config = null;
+let admin = null;
 let uploading = null;
 let progress = { pending: 0, error: null };
 
 const emit = () => status.dispatchEvent(new Event('change'));
 export const getConfig = () => config;
+export const hasAdmin = () => Boolean(admin);
 export const getProgress = () => progress;
 
 export async function initGallery() {
   config = (await Meta.get(CONFIG_KEY)) ?? null;
+  admin = (await Meta.get(ADMIN_KEY)) ?? null;
   window.addEventListener('online', () => uploadPending());
   // Another device may have reported an image missing that this device can re-upload.
   changes.addEventListener('change', (event) => event.detail?.origin === 'sync' && uploadPending());
@@ -49,7 +53,44 @@ export async function setConfig(cloudInput, presetInput) {
 export async function clearConfig() {
   config = null;
   await Meta.remove(CONFIG_KEY);
+  await clearAdmin();
+}
+
+// Optional: with the account's API key and secret this device can also delete files from
+// Cloudinary (signed requests). They stay on this device only.
+export async function setAdmin(keyInput, secretInput) {
+  const key = keyInput.trim();
+  const secret = secretInput.trim();
+  if (!/^\d+$/.test(key)) throw new Error('API key looks wrong. It is the number shown in Cloudinary → Settings → API Keys.');
+  if (!/^[\w-]{10,}$/.test(secret)) throw new Error('API secret looks wrong. Copy it from Cloudinary → Settings → API Keys.');
+  admin = { key, secret };
+  await Meta.set(ADMIN_KEY, admin);
   emit();
+}
+
+export async function clearAdmin() {
+  admin = null;
+  await Meta.remove(ADMIN_KEY);
+  emit();
+}
+
+const sha1Hex = async (text) =>
+  [...new Uint8Array(await crypto.subtle.digest('SHA-1', new TextEncoder().encode(text)))]
+    .map((b) => b.toString(16).padStart(2, '0')).join('');
+
+// Deletes the file with a signed request. True if it's gone (including already gone).
+async function destroy(img) {
+  const timestamp = Math.floor(Date.now() / 1000);
+  const signature = await sha1Hex(`invalidate=true&public_id=${img.public_id}&timestamp=${timestamp}${admin.secret}`);
+  const form = new FormData();
+  form.append('public_id', img.public_id);
+  form.append('timestamp', timestamp);
+  form.append('invalidate', 'true');
+  form.append('api_key', admin.key);
+  form.append('signature', signature);
+  const res = await fetch(`https://api.cloudinary.com/v1_1/${img.cloud}/image/destroy`, { method: 'POST', body: form });
+  const data = await res.json().catch(() => ({}));
+  return res.ok && (data.result === 'ok' || data.result === 'not found');
 }
 
 const deliveryUrl = (img, transformation = '') =>
@@ -60,12 +101,16 @@ export const originalUrl = (img) => (img.public_id && img.cloud && img.version &
 
 // ---------------------------------------------------------------- adding & uploading
 
-export async function addImages(entryId, files) {
+// `cover`: the files are the entry's original cover (kept first in the gallery).
+export async function addImages(entryId, files, { cover = false } = {}) {
   if (!config) throw new Error('Set up gallery hosting in Settings → Gallery first.');
   let added = 0;
   for (const file of files) {
     const { blob, width, height } = await imageToBlob(file, FULL_MAX_SIDE);
-    const record = await Gallery.add({ entry_id: entryId, cloud: config.cloud, width, height, pending: true });
+    const record = await Gallery.add({
+      entry_id: entryId, cloud: config.cloud, width, height, pending: true,
+      ...(cover && { is_cover: true, position: 0 }),
+    });
     await GalleryCache.put(record.id, 'full', blob);
     await GalleryCache.put(record.id, 'thumb', await squareThumb(blob));
     added++;
@@ -199,9 +244,10 @@ export function resolveGroups(images) {
 
 // ---------------------------------------------------------------- deleting
 
-// Removes the image from the gallery (and from every device through sync). Within 10 minutes of
-// uploading it's also deleted from Cloudinary; after that it stays there until you remove it in
-// Cloudinary's Media Library. Returns true if Cloudinary deleted it too.
+// Removes the image from the gallery (and from every device through sync). It's also deleted from
+// Cloudinary if this device has the API key and secret, or else within 10 minutes of uploading;
+// after that it stays there until you remove it in Cloudinary's Media Library.
+// Returns true if Cloudinary deleted it too.
 export async function deleteImage(img) {
   await Gallery.remove(img.id);
   for (const size of ['thumb', 'full']) {
@@ -210,6 +256,12 @@ export async function deleteImage(img) {
     objectUrls.delete(key);
   }
   if (img.pending) return true; // never reached Cloudinary
+
+  if (admin && img.public_id && img.cloud && img.cloud === config?.cloud) {
+    try {
+      if (await destroy(img)) return true;
+    } catch { /* fall back to the delete token below */ }
+  }
 
   const tokens = (await Meta.get(TOKENS_KEY)) ?? {};
   const saved = tokens[img.id];

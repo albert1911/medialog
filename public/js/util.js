@@ -12,6 +12,10 @@ export const statusLabel = (value) => STATUSES.find((s) => s.value === value)?.l
 const ESCAPES = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
 export const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ESCAPES[c]);
 
+// Record ids are UUIDs made here. Ids in imported or synced data that look like anything else
+// are rejected, because ids end up in HTML and URLs.
+export const isSafeId = (value) => typeof value === 'string' && /^[\w-]{1,64}$/.test(value);
+
 export const byText = (a, b) => a.localeCompare(b, undefined, { sensitivity: 'base', numeric: true });
 
 // Tags compare case-insensitively ("Isekai" = "isekai"); entries saved before tags existed have none.

@@ -13,7 +13,7 @@
 // Image uploads are paced under that, keeping some room free so text syncs always get
 // through. If GitHub still says "slow down", we wait exactly as long as it asks.
 import { Covers, Meta, changes, coverIdOf, isCoverRef, mimeOfCover, putSynced, snapshot } from './db.js';
-import { base64ToBytes, bytesToBase64 } from './util.js';
+import { base64ToBytes, bytesToBase64, isSafeId } from './util.js';
 
 const CONFIG_KEY = 'sync.config'; // { repo: "owner/name", token }
 const LAST_KEY = 'sync.last'; // ISO time of last successful sync
@@ -216,7 +216,8 @@ async function downloadCovers() {
 
 // ---------------------------------------------------------------- merge
 
-const isRecord = (r) => r && typeof r.id === 'string' && typeof r.updated_at === 'string';
+const isRecord = (r) => r && isSafeId(r.id) && typeof r.updated_at === 'string'
+  && [r.entry_id, r.media_source_id].every((ref) => ref == null || isSafeId(ref));
 const newer = (a, b) => a.updated_at > b.updated_at;
 
 // Text: pull, merge, push. Returns how many records came from other devices.

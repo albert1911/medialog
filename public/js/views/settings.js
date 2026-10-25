@@ -72,7 +72,35 @@ function drawGallery(box) {
       ${error ? '<button type="button" class="btn" data-g="retry">Retry uploads</button>' : ''}
       <button type="button" class="btn" data-g="copy">Copy preset name</button>
       <button type="button" class="btn btn-danger-ghost" data-g="off">Disconnect</button>
-    </div>`;
+    </div>
+    ${G.hasAdmin()
+      ? `<p class="ok">✓ Deleting an image also removes it from Cloudinary.</p>
+         <div class="row"><button type="button" class="btn btn-danger-ghost" data-g="admin-off">Remove API secret</button></div>`
+      : `<details>
+           <summary>Also delete from Cloudinary (optional)</summary>
+           <form id="admin-form" class="sync-form" novalidate>
+             <p class="muted small">Add your API key and secret (Cloudinary → Settings → API Keys) so deleting an image here removes the file too.
+               They are stored only in this browser: never exported, backed up or synced. Anyone with access to this browser could use them,
+               so only add them on devices you trust.</p>
+             <label class="field"><span>API key</span>
+               <input name="key" inputmode="numeric" autocomplete="off" spellcheck="false">
+             </label>
+             <label class="field"><span>API secret</span>
+               <input name="secret" type="password" autocomplete="off" spellcheck="false">
+             </label>
+             <button type="submit" class="btn btn-primary">Save</button>
+           </form>
+         </details>`}`;
+  box.querySelector('#admin-form')?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    try {
+      await G.setAdmin(event.target.elements.key.value, event.target.elements.secret.value);
+      toast('Deleting now also removes files from Cloudinary', 'success');
+    } catch (err) {
+      toast(err.message, 'error', 6000);
+    }
+  });
+  box.querySelector('[data-g=admin-off]')?.addEventListener('click', () => G.clearAdmin());
   box.querySelector('[data-g=retry]')?.addEventListener('click', () => G.uploadPending());
   // The preset name is cut off on small screens; this gets the full name (e.g. for another device).
   box.querySelector('[data-g=copy]').addEventListener('click', async () => {

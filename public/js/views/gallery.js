@@ -1,9 +1,10 @@
 // Gallery section on the entry page, plus the full-screen viewer.
-// The entry's cover is shown as the first tile (display only: it isn't a gallery record,
-// isn't synced as one, and can't be deleted from here — change it via Edit).
+// The entry's cover is the first tile. New entries keep an original copy of an uploaded cover
+// as a gallery record (is_cover: always first, not reorderable). Older entries show the stored
+// cover as a display-only tile instead (not a gallery record, can't be deleted from here).
 import { Covers, Gallery, changes, coverIdOf, isCoverRef } from '../db.js';
 import * as G from '../gallery.js';
-import { safeImg, toast } from '../util.js';
+import { esc, safeImg, toast } from '../util.js';
 
 const thumbObserver = new IntersectionObserver((items) => {
   for (const item of items) {
@@ -31,8 +32,9 @@ async function coverUrl(image) {
 
 // Everything the grid and viewer show: { label, url(size), image? (gallery record) }.
 function itemsFor(entry, images) {
-  const items = images.map((image) => ({ image, url: (size) => G.imageUrl(image, size) }));
-  if (entry?.cover_image) items.unshift({ cover: true, url: () => coverUrl(entry.cover_image) });
+  const items = images.map((image) => ({ image, cover: image.is_cover, url: (size) => G.imageUrl(image, size) }));
+  // Entries without an original copy in the gallery show the stored cover as a display-only tile.
+  if (entry?.cover_image && !images.some((g) => g.is_cover)) items.unshift({ cover: true, url: () => coverUrl(entry.cover_image) });
   return items;
 }
 
@@ -49,7 +51,9 @@ export async function mountGallery(section, entry) {
   async function draw() {
     images = G.resolveGroups(await Gallery.byEntry(entry.id));
     items = itemsFor(entry, images);
-    if (images.length < 2) reordering = selecting = false;
+    const movable = images.filter((g) => !g.is_cover);
+    if (movable.length < 2) reordering = false;
+    if (images.length < 2) selecting = false;
     for (const id of selected) if (!images.some((g) => g.id === id)) selected.delete(id); // deleted meanwhile
     if (!selecting) selected.clear();
     const canAdd = Boolean(G.getConfig());
@@ -60,7 +64,7 @@ export async function mountGallery(section, entry) {
       <div class="section-head">
         <h2 class="section-title">Gallery ${images.length ? `<span class="muted">(${images.length})</span>` : ''}</h2>
         <div class="row">
-          ${images.length >= 2 && !selecting ? `<button type="button" class="btn btn-small" data-g="reorder">${reordering ? 'Done' : 'Reorder'}</button>` : ''}
+          ${movable.length >= 2 && !selecting ? `<button type="button" class="btn btn-small" data-g="reorder">${reordering ? 'Done' : 'Reorder'}</button>` : ''}
           ${images.length >= 2 && idle ? '<button type="button" class="btn btn-small" data-g="select">Select</button>' : ''}
           ${selecting ? `
             <button type="button" class="btn btn-small" data-g="share" ${selected.size < 2 ? 'disabled' : ''}>Share description (${selected.size})</button>
@@ -72,13 +76,13 @@ export async function mountGallery(section, entry) {
       ${selecting ? '<p class="muted small reorder-hint">Tap the images that should share one description (2 or more). Images that already share one stay linked.</p>' : ''}
       ${items.length
         ? `<div class="gallery-grid">${items.map((item, i) => `
-            <button type="button" class="gallery-tile${item.image && selected.has(item.image.id) ? ' selected' : ''}" data-index="${i}" ${item.image ? `data-image="${item.image.id}"` : ''}
+            <button type="button" class="gallery-tile${item.image && selected.has(item.image.id) ? ' selected' : ''}" data-index="${i}" ${item.image && !item.cover ? `data-image="${esc(item.image.id)}"` : ''}
               aria-label="${item.cover ? 'Open cover image' : `Open image ${i + 1}`}">
               <img alt="" hidden draggable="false">
               ${item.cover ? '<span class="gallery-badge">Cover</span>' : ''}
               ${item.image?.pending ? '<span class="gallery-badge">Uploading…</span>' : ''}
               ${item.image?.desc_group ? '<span class="gallery-link" title="Shares its description" aria-label="Shares its description">🔗</span>' : ''}
-              ${reordering && item.image ? `
+              ${reordering && item.image && !item.cover ? `
                 <span class="move-buttons">
                   <span class="move-btn" role="button" tabindex="0" data-move="-1" aria-label="Move earlier">◀</span>
                   <span class="move-btn" role="button" tabindex="0" data-move="1" aria-label="Move later">▶</span>
@@ -168,7 +172,7 @@ export async function mountGallery(section, entry) {
   }
 
   // ---- reordering
-  const galleryOrder = () => images.map((g) => g.id);
+  const galleryOrder = () => images.filter((g) => !g.is_cover).map((g) => g.id); // the cover stays first
 
   async function saveOrder(orderedIds, movedId) {
     if (orderedIds.join() === galleryOrder().join()) return draw(); // dropped where it was
@@ -415,7 +419,7 @@ function openViewer(items, start, onChange) {
     setZoom(1, 0, 0); // every image starts un-zoomed
     dialog.querySelector('.viewer-count').textContent = `${item.cover ? 'Cover · ' : ''}${index + 1} / ${items.length}`;
     dialog.querySelectorAll('.viewer-nav').forEach((b) => (b.hidden = items.length < 2));
-    deleteButton.hidden = Boolean(item.cover); // the cover is changed via Edit, not here
+    deleteButton.hidden = !item.image; // the display-only cover is changed via Edit, not here
     const original = item.image && G.originalUrl(item.image); // only once it's on Cloudinary
     originalLink.hidden = !original;
     if (original) originalLink.href = original;
@@ -432,7 +436,7 @@ function openViewer(items, start, onChange) {
     if (url) {
       imgEl.src = url;
       imgEl.hidden = false;
-      if (item.cover) {
+      if (item.cover && !item.image) {
         // a web cover's own link, or the uploaded cover's local copy (that one only opens on phones)
         originalLink.href = url;
         originalLink.hidden = false;

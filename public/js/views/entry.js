@@ -1,4 +1,5 @@
-import { Covers, Entries, Sources, ValidationError, isCoverRef } from '../db.js';
+import { Covers, Entries, Gallery, Sources, ValidationError, isCoverRef } from '../db.js';
+import { addImages, getConfig } from '../gallery.js';
 import { mountGallery } from './gallery.js';
 import {
   STATUSES, byText, debounce, esc, fmtDate, fmtDateTime,
@@ -83,7 +84,7 @@ export async function renderEntryDetail(view, id) {
         ${entry.description ? `<p class="description">${esc(entry.description)}</p>` : ''}
 
         <div class="row">
-          <a class="btn" href="#/entries/${entry.id}/edit">
+          <a class="btn" href="#/entries/${esc(entry.id)}/edit">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width: 16px;">
               <path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
             </svg>
@@ -202,6 +203,7 @@ export async function renderEntryForm(view, id, query) {
   // Uploaded cover: existing reference ("cover:…") or a newly picked image (stored on save).
   let uploaded = isCoverRef(v.cover_image) ? v.cover_image : null;
   let pendingBlob = null;
+  let pendingFile = null; // the picked file itself, for the gallery's original copy
   let pendingUrl = null;
   let coverAspect = v.cover_aspect ?? null;
   const cancelHref = editing ? `#/entries/${id}` : '#/';
@@ -235,7 +237,7 @@ export async function renderEntryForm(view, id, query) {
             <label class="field"><span>Source (original work)</span>
               <select name="media_source_id">
                 <option value="">— None (standalone) —</option>
-                ${[...sources].sort((a, b) => byText(a.title, b.title)).map((s) => `<option value="${s.id}" ${s.id === v.media_source_id ? 'selected' : ''}>${esc(s.title)} (${esc(s.category)})</option>`).join('')}
+                ${[...sources].sort((a, b) => byText(a.title, b.title)).map((s) => `<option value="${esc(s.id)}" ${s.id === v.media_source_id ? 'selected' : ''}>${esc(s.title)} (${esc(s.category)})</option>`).join('')}
               </select>
               <small class="muted">Optional: the game or work this story comes from. <a href="#/sources/new">+ New source</a></small>
             </label>
@@ -308,7 +310,7 @@ export async function renderEntryForm(view, id, query) {
   let probeSeq = 0;
   const dropPending = () => {
     if (pendingUrl) URL.revokeObjectURL(pendingUrl);
-    pendingBlob = pendingUrl = null;
+    pendingBlob = pendingUrl = pendingFile = null;
   };
 
   urlInput.addEventListener('input', debounce(async () => {
@@ -331,6 +333,7 @@ export async function renderEntryForm(view, id, query) {
       dropPending();
       ({ blob: pendingBlob, aspect: coverAspect } = await imageToBlob(file));
       pendingUrl = URL.createObjectURL(pendingBlob);
+      pendingFile = file;
       uploaded = null;
       probeSeq++;
       urlInput.value = '';
@@ -368,6 +371,7 @@ export async function renderEntryForm(view, id, query) {
     event.preventDefault();
     const data = Object.fromEntries(new FormData(form));
     data.tags = getTags();
+    const originalFile = pendingFile;
     try {
       if (pendingBlob) {
         uploaded = await Covers.add(pendingBlob);
@@ -383,6 +387,14 @@ export async function renderEntryForm(view, id, query) {
     try {
       const saved = await Entries.save(data, editing ? id : null);
       toast(editing ? 'Changes saved' : 'Entry created', 'success');
+      // A changed cover no longer matches the gallery's original copy, which becomes a normal image.
+      if (editing && (data.cover_image || '') !== (v.cover_image || '')) {
+        for (const image of await Gallery.byEntry(saved.id)) if (image.is_cover) await Gallery.update(image.id, { is_cover: false });
+      }
+      // New entries also keep the original cover in the gallery (and on Cloudinary).
+      if (!editing && originalFile && getConfig()) {
+        await addImages(saved.id, [originalFile], { cover: true }).catch((err) => toast(`Could not add the cover to the gallery: ${err.message}`, 'error'));
+      }
       location.hash = `#/entries/${saved.id}`;
     } catch (err) {
       if (err instanceof ValidationError) markInvalid(form, err.field);
