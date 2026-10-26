@@ -51,8 +51,10 @@ body {
   background: var(--bg);
   color: var(--text);
   font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
-  height: 100vh;
-  height: 100dvh;
+  /* Pinned to the viewport rather than sized with 100dvh: after a reload or returning from another
+     page, mobile browsers can leave dvh stale, which pushed the bottom of the page off screen. */
+  position: fixed;
+  inset: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden; /* only #view scrolls, so the topbar never shifts when a scrollbar appears */
