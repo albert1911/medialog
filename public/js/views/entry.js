@@ -324,17 +324,18 @@ export async function renderEntryForm(view, id, query) {
     if (!file) return;
     try {
       dropPending();
-      ({ blob: pendingBlob, aspect: coverAspect } = await imageToBlob(file));
-      pendingUrl = URL.createObjectURL(pendingBlob);
       // Phones can invalidate a picked File once the input is reset or the picker's temp copy goes
-      // away, so keep the bytes in memory for the gallery's original copy.
-      pendingFile = new Blob([await file.arrayBuffer()], { type: file.type });
+      // away, so read the bytes once and use that in-memory copy for everything after.
+      const copy = new Blob([await file.arrayBuffer()], { type: file.type });
+      ({ blob: pendingBlob, aspect: coverAspect } = await imageToBlob(copy));
+      pendingUrl = URL.createObjectURL(pendingBlob);
+      pendingFile = copy;
       uploaded = null;
       probeSeq++;
       urlInput.value = '';
       drawCover();
-    } catch {
-      toast('Could not read that image.', 'error');
+    } catch (err) {
+      toast(`Could not read that image: ${err.message}`, 'error');
     }
     event.target.value = '';
   });
