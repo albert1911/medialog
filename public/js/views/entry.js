@@ -326,7 +326,9 @@ export async function renderEntryForm(view, id, query) {
       dropPending();
       ({ blob: pendingBlob, aspect: coverAspect } = await imageToBlob(file));
       pendingUrl = URL.createObjectURL(pendingBlob);
-      pendingFile = file;
+      // Phones can invalidate a picked File once the input is reset or the picker's temp copy goes
+      // away, so keep the bytes in memory for the gallery's original copy.
+      pendingFile = new Blob([await file.arrayBuffer()], { type: file.type });
       uploaded = null;
       probeSeq++;
       urlInput.value = '';
