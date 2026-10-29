@@ -1,4 +1,5 @@
-import { Editor, Node, StarterKit } from './vendor/tiptap.js';
+import { iconSVG } from './icons.js';
+import { Editor, Node, StarterKit, TextAlign } from './vendor/tiptap.js';
 
 // A rich-text editor (Tiptap) for the entry's content. The stored value stays HTML: the editor
 // keeps the form's <textarea name="content"> in sync, and "Source" swaps back to that textarea.
@@ -26,21 +27,25 @@ const isSupported = (html) => {
 const BUTTONS = [
   { id: 'h2', label: 'H2', title: 'Heading (Ctrl+Alt+2)', active: ['heading', { level: 2 }], run: (c) => c.toggleHeading({ level: 2 }) },
   { id: 'h3', label: 'H3', title: 'Subheading (Ctrl+Alt+3)', active: ['heading', { level: 3 }], run: (c) => c.toggleHeading({ level: 3 }) },
-  { id: 'bold', label: 'B', title: 'Bold (Ctrl+B)', cls: 'ed-bold', active: ['bold'], run: (c) => c.toggleBold() },
-  { id: 'italic', label: 'I', title: 'Italic (Ctrl+I)', cls: 'ed-italic', active: ['italic'], run: (c) => c.toggleItalic() },
-  { id: 'link', label: 'Link', title: 'Link (Ctrl+K)', active: ['link'], run: null },
-  { id: 'ul', label: '• List', title: 'Bulleted list (Ctrl+Shift+8)', active: ['bulletList'], run: (c) => c.toggleBulletList() },
-  { id: 'ol', label: '1. List', title: 'Numbered list (Ctrl+Shift+7)', active: ['orderedList'], run: (c) => c.toggleOrderedList() },
-  { id: 'quote', label: 'Quote', title: 'Quote (Ctrl+Shift+B)', active: ['blockquote'], run: (c) => c.toggleBlockquote() },
-  { id: 'hr', label: 'HR', title: 'Divider', run: (c) => c.setHorizontalRule() },
-  { id: 'card', label: 'Card', title: 'Card (Ctrl+Alt+C)', active: ['card'], run: (c) => c.toggleWrap('card') },
+  { id: 'bold', icon: 'bold', title: 'Bold (Ctrl+B)', cls: 'ed-bold', active: ['bold'], run: (c) => c.toggleBold() },
+  { id: 'italic', icon: 'italic', title: 'Italic (Ctrl+I)', cls: 'ed-italic', active: ['italic'], run: (c) => c.toggleItalic() },
+  { id: 'underline', icon: 'underline', title: 'Underline (Ctrl+U)', cls: 'ed-underline', active: ['underline'], run: (c) => c.toggleUnderline() },
+  { id: 'link', icon: 'link', title: 'Link (Ctrl+K)', active: ['link'], run: null },
+  { id: 'ul', icon: 'ul', title: 'Bulleted list (Ctrl+Shift+8)', active: ['bulletList'], run: (c) => c.toggleBulletList() },
+  { id: 'ol', icon: 'ol', title: 'Numbered list (Ctrl+Shift+7)', active: ['orderedList'], run: (c) => c.toggleOrderedList() },
+  { id: 'quote', icon: 'quote', title: 'Quote (Ctrl+Shift+B)', active: ['blockquote'], run: (c) => c.toggleBlockquote() },
+  { id: 'left', icon: 'left', title: 'Align left (Ctrl+Shift+L)', active: [{ textAlign: 'left' }], run: (c) => c.setTextAlign('left') },
+  { id: 'center', icon: 'center', title: 'Align center (Ctrl+Shift+E)', active: [{ textAlign: 'center' }], run: (c) => c.setTextAlign('center') },
+  { id: 'right', icon: 'right', title: 'Align right (Ctrl+Shift+R)', active: [{ textAlign: 'right' }], run: (c) => c.setTextAlign('right') },
+  { id: 'hr', icon: 'hr', title: 'Divider', run: (c) => c.setHorizontalRule() },
+  { id: 'card', icon: 'card', title: 'Card (Ctrl+Alt+C)', active: ['card'], run: (c) => c.toggleWrap('card') },
 ];
 
 export function editorHTML() {
   const buttons = BUTTONS.map((b) =>
-    `<button type="button" class="btn btn-small btn-ghost ${b.cls || ''}" data-action="${b.id}" title="${b.title}">${b.label}</button>`).join('');
+    `<button type="button" class="btn btn-small btn-ghost ${b.cls || ''}" data-action="${b.id}" title="${b.title}" aria-label="${b.title}">${b.icon ? iconSVG(b.icon) : b.label}</button>`).join('');
   return `<div class="editor-bar" role="toolbar" aria-label="Formatting">${buttons}
-    <button type="button" class="btn btn-small btn-ghost editor-source" aria-pressed="false" title="Edit the raw HTML">Source</button></div>
+    <button type="button" class="btn btn-small btn-ghost editor-source" aria-pressed="false" title="Edit the raw HTML" aria-label="Edit the raw HTML">${iconSVG('source')}</button></div>
     <div class="rich-editor"></div>`;
 }
 
@@ -91,7 +96,8 @@ export function bindEditor(root, textarea) {
 
   editor = new Editor({
     element: host,
-    extensions: [StarterKit.configure({ link: { openOnClick: false }, trailingNode: false }), Card],
+    extensions: [StarterKit.configure({ link: { openOnClick: false }, trailingNode: false }),
+      TextAlign.configure({ types: ['heading', 'paragraph'] }), Card],
     content: textarea.value,
     editorProps: {
       attributes: { class: 'rich-content', 'aria-label': 'Content' },
