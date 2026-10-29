@@ -147,6 +147,12 @@ export function mountContent(frame, html) {
     html,body{margin:0;background:transparent;color:${color};font:15px/1.65 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;overflow:hidden;overflow-wrap:anywhere}
     body>:first-child{margin-top:0} body>:last-child{margin-bottom:0}
     a{color:${accent}} img,video{max-width:100%;height:auto} pre{white-space:pre-wrap}
+    li>p{margin:0}
+    hr{border:0;border-top:1px solid #8886;margin:1.2em 0}
+    blockquote{margin:1em 0;padding:0 1em;border-left:4px solid #8886}
+    code{background:#8883;border-radius:4px;padding:.1em .35em}
+    .card{border:1px solid #8886;border-radius:10px;padding:.8em 1em;margin:1em 0;background:#8881}
+    .card>:first-child{margin-top:0} .card>:last-child{margin-bottom:0}
     table{border-collapse:collapse} td,th{border:1px solid #8885;padding:4px 8px}
   </style></head><body>${html}</body></html>`;
   // The frame's height includes its own padding and border (border-box sizing), so add those

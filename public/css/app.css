@@ -323,6 +323,31 @@ option { background: var(--surface); color: var(--text); }
 
 .field { display: flex; flex-direction: column; gap: 0.3rem; min-width: 0; }
 .field > span, .field-label, .field-head label { font-size: 0.85rem; font-weight: 600; color: var(--muted); }
+.editor-bar { display: flex; flex-wrap: wrap; gap: 0.25rem; margin-bottom: 0.35rem; }
+.editor-bar .btn { border: 1px solid var(--border); }
+.editor-bar .btn.is-active, .editor-bar .editor-source[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.editor-source { margin-left: auto; }
+.ed-bold { font-weight: 800; } .ed-italic { font-style: italic; }
+.rich-editor[hidden] { display: none; }
+.rich-content { min-height: 180px; padding: 0.6rem 0.8rem; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); line-height: 1.65; overflow-wrap: anywhere; }
+.rich-content:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.rich-content { font: 15px/1.65 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+/* Mirror the browser defaults the content iframe renders with (see mountContent), undoing the app's resets. */
+.rich-content :is(p, ul, ol, blockquote, pre, h1, h2, h3, h4, h5, h6) { margin: 1em 0; }
+.rich-content h1 { font-size: 2em; } .rich-content h2 { font-size: 1.5em; } .rich-content h3 { font-size: 1.17em; }
+.rich-content :is(h1, h2, h3, h4, h5, h6) { line-height: 1.25; margin: 0.83em 0; }
+.rich-content :is(ul, ol) { padding-left: 2.5rem; }
+.rich-content li > p { margin: 0; }
+.rich-content a { text-decoration: underline; }
+.rich-content pre { white-space: pre-wrap; }
+.rich-content > :first-child { margin-top: 0; } .rich-content > :last-child { margin-bottom: 0; }
+.rich-content a { color: var(--accent); }
+.rich-content blockquote { margin: 1em 0; padding: 0 1em; border-left: 4px solid var(--border); }
+.rich-content code { background: #8883; border-radius: 4px; padding: 0.1em 0.35em; }
+.rich-content hr { border: 0; border-top: 1px solid #8886; margin: 1.2em 0; }
+.rich-content hr.ProseMirror-selectednode { border-top-color: var(--accent); }
+.rich-content .card { display: block; position: static; box-shadow: none; overflow: visible; transition: none; border: 1px solid #8886; border-radius: 10px; padding: 0.8em 1em; margin: 1em 0; background: #8881; }
+.rich-content .card > :first-child { margin-top: 0; } .rich-content .card > :last-child { margin-bottom: 0; }
 .field-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: .25rem;; }
 .field-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; }
 .counter { align-self: flex-end; }

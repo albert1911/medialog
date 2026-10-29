@@ -10,6 +10,7 @@ import {
   progressPct, renderNotFound, tagFieldHTML,
 } from '../components.js';
 import { showTagInLibrary } from './library.js';
+import { bindEditor, editorHTML } from '../editor.js';
 
 const statusOptions = (selected) =>
   STATUSES.map((s) => `<option value="${s.value}" ${s.value === selected ? 'selected' : ''}>${s.label}</option>`).join('');
@@ -276,9 +277,10 @@ export async function renderEntryForm(view, id, query) {
 
           <div class="field">
             <div class="field-head">
-              <label for="content">Content (raw HTML)</label>
+              <label for="content">Content</label>
               <button type="button" class="btn btn-small btn-ghost" id="preview-toggle">Preview</button>
             </div>
+            ${editorHTML()}
             <textarea name="content" id="content" rows="10" class="mono" placeholder="<p>Notes, reviews, links, embeds…</p>">${esc(v.content)}</textarea>
             <iframe class="content-frame panel" id="content-preview" title="Content preview" hidden></iframe>
           </div>
@@ -355,6 +357,7 @@ export async function renderEntryForm(view, id, query) {
     previewToggle.textContent = previewFrame.hidden ? 'Preview' : 'Hide preview';
     if (!previewFrame.hidden) mountContent(previewFrame, form.elements.content.value);
   });
+  bindEditor(form, form.elements.content);
   form.elements.content.addEventListener('input', debounce(() => {
     if (!previewFrame.hidden) mountContent(previewFrame, form.elements.content.value);
   }, 400));
