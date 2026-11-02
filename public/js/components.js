@@ -154,6 +154,16 @@ export function mountContent(frame, html) {
     .card{border:1px solid #8886;border-radius:10px;padding:.8em 1em;margin:1em 0;background:#8881}
     .card>:first-child{margin-top:0} .card>:last-child{margin-bottom:0}
     table{border-collapse:collapse} td,th{border:1px solid #8885;padding:4px 8px}
+    html{interpolate-size:allow-keywords}
+    .fold-hidden{height:0!important;opacity:0;overflow:hidden;margin-block:0!important;padding-block:0!important;border-block-width:0!important;visibility:hidden;pointer-events:none}
+    @media (prefers-reduced-motion:no-preference){body>*{transition:height .22s ease,margin .22s ease,padding .22s ease,border-width .22s ease,opacity .22s ease,visibility .22s}}
+    .is-folded{margin-bottom:0}
+    h1,h2,h3,h4,h5,h6{position:relative;padding-right:1.4em}
+    h1,h2,h3,h4,h5,h6{cursor:pointer}
+    .fold-toggle{position:absolute;right:0;top:50%;margin-top:-.5em;width:1em;height:1em;cursor:pointer;opacity:0;transition:opacity .15s;user-select:none}
+    .fold-toggle::before{content:"";position:absolute;inset:.25em .2em;border:solid currentColor;border-width:0 2px 2px 0;transform:translate(-10%,-10%) rotate(45deg) scale(.7);transition:transform .15s}
+    h1:hover .fold-toggle,h2:hover .fold-toggle,h3:hover .fold-toggle,h4:hover .fold-toggle,h5:hover .fold-toggle,h6:hover .fold-toggle,.is-folded .fold-toggle{opacity:.7}
+    .is-folded .fold-toggle::before{transform:translate(-30%,0) rotate(-45deg) scale(.7)}
   </style></head><body>${html}</body></html>`;
   // The frame's height includes its own padding and border (border-box sizing), so add those
   // to the content's height; otherwise the last line(s) get cut off.
@@ -165,7 +175,40 @@ export function mountContent(frame, html) {
       .reduce((sum, prop) => sum + (parseFloat(cs[prop]) || 0), 0);
     frame.style.height = `${Math.ceil(body.scrollHeight + chrome)}px`;
   };
+  // Scripts can't run in the frame, so the parent wires up heading folding (same-origin access):
+  // a chevron on each top-level heading hides the siblings below it up to the next heading of the
+  // same or a higher level.
+  // Folds every heading, or unfolds them all when they already are.
+  frame.toggleAllFolds = () => {
+    const doc = frame.contentDocument;
+    const heads = [...doc.querySelectorAll('.is-folded, .fold-toggle')].map((el) => el.closest('h1,h2,h3,h4,h5,h6'));
+    const open = [...new Set(heads)].filter((h) => !h.classList.contains('is-folded'));
+    for (const h of open.length ? open : new Set(heads)) h.querySelector('.fold-toggle').click();
+  };
+  const wireFolding = (doc) => {
+    const level = (el) => (/^H[1-6]$/.test(el.tagName) ? Number(el.tagName[1]) : null);
+    for (const heading of [...doc.body.children].filter(level)) {
+      const toggle = doc.createElement('span');
+      toggle.className = 'fold-toggle';
+      toggle.title = 'Collapse section';
+      heading.append(toggle);
+      heading.addEventListener('click', (event) => {
+        if (event.target.closest('a') || doc.getSelection()?.toString()) return; // links and text selection still work
+        const folded = heading.classList.toggle('is-folded');
+        toggle.title = folded ? 'Expand section' : 'Collapse section';
+        const heads = [...doc.querySelectorAll('.fold-toggle')].map((t) => t.parentElement);
+        frame.dispatchEvent(new CustomEvent('foldchange', { detail: heads.every((h) => h.classList.contains('is-folded')) }));
+        for (let el = heading.nextElementSibling; el && !(level(el) && level(el) <= level(heading)); el = el.nextElementSibling) {
+          if (el.tagName !== 'HR') el.classList.toggle('fold-hidden', folded);
+        }
+      });
+    }
+  };
   frame.onload = () => {
+    if (frame.contentDocument?.body) {
+      wireFolding(frame.contentDocument);
+      frame.dispatchEvent(new CustomEvent('foldable', { detail: frame.contentDocument.querySelector('.fold-toggle') !== null }));
+    }
     fit();
     try { new ResizeObserver(fit).observe(frame.contentDocument.body); } catch { /* ignore */ }
   };

@@ -1,5 +1,5 @@
 import { iconSVG } from './icons.js';
-import { Editor, Node, StarterKit, TextAlign } from './vendor/tiptap.js';
+import { Decoration, DecorationSet, Editor, Extension, Node, Plugin, PluginKey, StarterKit, TextAlign } from './vendor/tiptap.js';
 
 // A rich-text editor (Tiptap) for the entry's content. The stored value stays HTML: the editor
 // keeps the form's <textarea name="content"> in sync, and "Source" swaps back to that textarea.
@@ -14,15 +14,57 @@ const Card = Node.create({
   renderHTML: () => ['div', { class: 'card' }, 0],
 });
 
-// Tags the editor can represent; content using anything else (embeds, tables…) opens in Source
-// mode so it isn't silently stripped.
-const SUPPORTED = new Set('p br h1 h2 h3 h4 h5 h6 strong b em i u s a ul ol li hr blockquote pre code div'.split(' '));
+// Obsidian-style folding: a chevron on each top-level heading hides everything below it up to the
+// next heading of the same or a higher level. Fold state lives in the editor only, never in the HTML.
+const foldKey = new PluginKey('headingFold');
 
-const isSupported = (html) => {
-  const doc = new DOMParser().parseFromString(html, 'text/html');
-  return [...doc.body.querySelectorAll('*')].every((el) => SUPPORTED.has(el.localName)
-    && (el.localName !== 'div' || el.className === 'card'));
-};
+const Fold = Extension.create({
+  name: 'headingFold',
+  addProseMirrorPlugins: () => [new Plugin({
+    key: foldKey,
+    state: {
+      init: () => [],
+      apply(tr, folded) {
+        const toggled = tr.getMeta(foldKey);
+        const mapped = tr.docChanged ? folded.map((pos) => tr.mapping.map(pos)) : folded;
+        const valid = mapped.filter((pos) => tr.doc.nodeAt(pos)?.type.name === 'heading');
+        if (toggled === undefined) return valid;
+        return valid.includes(toggled) ? valid.filter((pos) => pos !== toggled) : [...valid, toggled];
+      },
+    },
+    props: {
+      decorations(state) {
+        const folded = foldKey.getState(state);
+        const decos = [];
+        let hideUntil = null; // level of the folded heading whose body is being hidden
+        state.doc.forEach((node, pos) => {
+          const isHeading = node.type.name === 'heading';
+          if (hideUntil !== null && !(isHeading && node.attrs.level <= hideUntil)) {
+            if (node.type.name !== 'horizontalRule') decos.push(Decoration.node(pos, pos + node.nodeSize, { class: 'fold-hidden' }));
+            return;
+          }
+          hideUntil = null;
+          if (!isHeading) return;
+          const isFolded = folded.includes(pos);
+          if (isFolded) hideUntil = node.attrs.level;
+          decos.push(Decoration.node(pos, pos + node.nodeSize, { class: isFolded ? 'is-folded' : '' }));
+          decos.push(Decoration.widget(pos + node.nodeSize - 1, (view) => {
+            const btn = document.createElement('span');
+            btn.className = 'fold-toggle';
+            btn.contentEditable = 'false';
+            btn.title = isFolded ? 'Expand section' : 'Collapse section';
+            btn.addEventListener('mousedown', (e) => {
+              e.preventDefault();
+              view.dispatch(view.state.tr.setMeta(foldKey, pos));
+            });
+            return btn;
+          }, { side: 1, key: `fold-${pos}-${isFolded}` }));
+        });
+        return DecorationSet.create(state.doc, decos);
+      },
+    },
+  })],
+});
 
 const BUTTONS = [
   { id: 'h2', label: 'H2', title: 'Heading (Ctrl+Alt+2)', active: ['heading', { level: 2 }], run: (c) => c.toggleHeading({ level: 2 }) },
@@ -44,18 +86,29 @@ const BUTTONS = [
 export function editorHTML() {
   const buttons = BUTTONS.map((b) =>
     `<button type="button" class="btn btn-small btn-ghost ${b.cls || ''}" data-action="${b.id}" title="${b.title}" aria-label="${b.title}">${b.icon ? iconSVG(b.icon) : b.label}</button>`).join('');
-  return `<div class="editor-bar" role="toolbar" aria-label="Formatting">${buttons}
-    <button type="button" class="btn btn-small btn-ghost editor-source" aria-pressed="false" title="Edit the raw HTML" aria-label="Edit the raw HTML">${iconSVG('source')}</button></div>
+  return `<div class="editor-bar" role="toolbar" aria-label="Formatting">${buttons}</div>
     <div class="rich-editor"></div>`;
+}
+
+// Keeps the caret about a third of the way down the scrolling container while typing, so long
+// content never needs manual scrolling.
+function followCaret(editor, bar) {
+  if (!editor.view.hasFocus()) return;
+  const scroller = bar.closest('.container') || document.scrollingElement;
+  const { head } = editor.state.selection;
+  const caret = editor.view.coordsAtPos(head);
+  const box = scroller === document.scrollingElement
+    ? { top: 0, bottom: innerHeight } : scroller.getBoundingClientRect();
+  const top = Math.max(box.top, 0) + bar.offsetHeight;
+  const target = top + (Math.min(box.bottom, innerHeight) - top) * 0.33;
+  const delta = caret.bottom - target;
+  if (Math.abs(delta) > 4) scroller.scrollBy({ top: delta });
 }
 
 export function bindEditor(root, textarea) {
   const bar = root.querySelector('.editor-bar');
   const host = root.querySelector('.rich-editor');
-  const sourceBtn = bar.querySelector('.editor-source');
-  const formatBtns = [...bar.querySelectorAll('[data-action]')];
   let editor = null;
-  let sourceMode = false;
 
   const push = () => {
     const html = editor.isEmpty ? '' : editor.getHTML();
@@ -67,7 +120,7 @@ export function bindEditor(root, textarea) {
   const refresh = () => {
     for (const b of BUTTONS) {
       const el = bar.querySelector(`[data-action="${b.id}"]`);
-      el.classList.toggle('is-active', Boolean(editor && !sourceMode && b.active && editor.isActive(...b.active)));
+      el.classList.toggle('is-active', Boolean(editor && b.active && editor.isActive(...b.active)));
     }
   };
 
@@ -84,20 +137,10 @@ export function bindEditor(root, textarea) {
     ...Object.fromEntries(BUTTONS.filter((b) => b.run).map((b) => [b.id, () => b.run(editor.chain().focus()).run()])),
   };
 
-  const setMode = (source) => {
-    sourceMode = source;
-    textarea.hidden = !source;
-    host.hidden = source;
-    sourceBtn.setAttribute('aria-pressed', String(source));
-    formatBtns.forEach((b) => { b.disabled = source; });
-    if (!source) editor.commands.setContent(textarea.value, { emitUpdate: false });
-    refresh();
-  };
-
   editor = new Editor({
     element: host,
     extensions: [StarterKit.configure({ link: { openOnClick: false }, trailingNode: false }),
-      TextAlign.configure({ types: ['heading', 'paragraph'] }), Card],
+      TextAlign.configure({ types: ['heading', 'paragraph'] }), Card, Fold],
     content: textarea.value,
     editorProps: {
       attributes: { class: 'rich-content', 'aria-label': 'Content' },
@@ -105,24 +148,18 @@ export function bindEditor(root, textarea) {
         const mod = e.ctrlKey || e.metaKey;
         if (mod && !e.altKey && !e.shiftKey && e.code === 'KeyK') { e.preventDefault(); editLink(); return true; }
         if (mod && e.altKey && e.code === 'KeyC') { e.preventDefault(); actions.card(); return true; }
+        if (e.key.startsWith('Arrow') || e.key.startsWith('Page')) requestAnimationFrame(() => followCaret(editor, bar));
         return false;
       },
     },
-    onUpdate: push,
+    onUpdate: () => { push(); followCaret(editor, bar); },
     onTransaction: refresh,
   });
 
   bar.addEventListener('mousedown', (e) => e.preventDefault()); // keep the selection
   bar.addEventListener('click', (e) => {
-    if (e.target.closest('.editor-source')) {
-      if (sourceMode && !isSupported(textarea.value)
-        && !confirm('This HTML uses elements the editor cannot represent (embeds, tables…). Switching will remove them. Continue?')) return;
-      setMode(!sourceMode);
-      return;
-    }
     const id = e.target.closest('[data-action]')?.dataset.action;
-    if (id && !sourceMode) actions[id]();
+    if (id) actions[id]();
   });
-
-  setMode(textarea.value.trim() !== '' && !isSupported(textarea.value));
+  refresh();
 }

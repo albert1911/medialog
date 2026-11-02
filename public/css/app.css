@@ -327,7 +327,7 @@ option { background: var(--surface); color: var(--text); }
 
 .field { display: flex; flex-direction: column; gap: 0.3rem; min-width: 0; }
 .field > span, .field-label, .field-head label { font-size: 0.85rem; font-weight: 600; color: var(--muted); }
-.editor-bar { display: flex; flex-wrap: wrap; gap: 0.25rem; margin-bottom: 0.35rem; }
+.editor-bar { display: flex; flex-wrap: wrap; gap: 0.25rem; padding: 0.35rem 0; margin-bottom: 0; position: sticky; top: -1.5rem; z-index: 5; background: var(--bg); }
 .editor-bar .btn { border: 1px solid var(--border); }
 .editor-bar .btn.is-active, .editor-bar .editor-source[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
 .editor-source { margin-left: auto; }
@@ -337,7 +337,7 @@ option { background: var(--surface); color: var(--text); }
 .editor-bar .btn { min-width: 34px; justify-content: center; }
 .rich-editor[hidden] { display: none; }
 .rich-content { min-height: 180px; padding: 0.6rem 0.8rem; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); line-height: 1.65; overflow-wrap: anywhere; }
-.rich-content:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.rich-content:focus { outline: 2px solid var(--accent); outline-offset: -2px; }
 .rich-content { font: 15px/1.65 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
 /* Mirror the browser defaults the content iframe renders with (see mountContent), undoing the app's resets. */
 .rich-content :is(p, ul, ol, blockquote, pre, h1, h2, h3, h4, h5, h6) { margin: 1em 0; }
@@ -351,6 +351,17 @@ option { background: var(--surface); color: var(--text); }
 .rich-content a { color: var(--accent); }
 .rich-content blockquote { margin: 1em 0; padding: 0 1em; border-left: 4px solid var(--border); }
 .rich-content code { background: #8883; border-radius: 4px; padding: 0.1em 0.35em; }
+.rich-content { interpolate-size: allow-keywords; }
+.rich-content .fold-hidden { height: 0 !important; opacity: 0; overflow: hidden; margin-block: 0 !important; padding-block: 0 !important; border-block-width: 0 !important; visibility: hidden; pointer-events: none; }
+@media (prefers-reduced-motion: no-preference) {
+  .rich-content > * { transition: height .22s ease, margin .22s ease, padding .22s ease, border-width .22s ease, opacity .22s ease, visibility .22s; }
+}
+.rich-content .is-folded { margin-bottom: 0; }
+.rich-content :is(h1, h2, h3, h4, h5, h6) { position: relative; padding-right: 1.4em; }
+.rich-content .fold-toggle { position: absolute; right: 0; top: 50%; width: 1em; height: 1em; margin-top: -0.5em; cursor: pointer; opacity: 0; transition: opacity .15s; user-select: none; }
+.rich-content .fold-toggle::before { content: ""; position: absolute; inset: 0.25em 0.2em; border: solid var(--muted, currentColor); border-width: 0 2px 2px 0; transform: translate(-10%, -10%) rotate(45deg) scale(0.7); transition: transform .15s; }
+.rich-content :is(h1, h2, h3, h4, h5, h6):hover .fold-toggle, .rich-content .is-folded .fold-toggle { opacity: 0.7; }
+.rich-content .is-folded .fold-toggle::before { transform: translate(-30%, 0) rotate(-45deg) scale(0.7); }
 .rich-content hr { border: 0; border-top: 1px solid #8886; margin: 1.2em 0; }
 .rich-content hr.ProseMirror-selectednode { border-top-color: var(--accent); }
 .rich-content .card { display: block; position: static; box-shadow: none; overflow: visible; transition: none; border: 1px solid #8886; border-radius: 10px; padding: 0.8em 1em; margin: 1em 0; background: #8881; }
@@ -585,6 +596,8 @@ legend { font-weight: 700; padding: 0 0.35rem; }
 .facts dd { margin: 0.15rem 0 0; }
 .description { font-size: 1rem; white-space: pre-line; margin-bottom: 1.25rem; } /* width comes from its column, up to the panel */
 .section-title { margin: 2rem 0 0.75rem; }
+#fold-all:not([hidden]) { display: flex; margin-top: 1rem; }
+.detail .detail-main > #fold-all + .content-frame { margin-top: 0.5rem; }
 .content-frame { display: block; width: 100%; min-height: 60px; border: 1px solid var(--border); background: var(--surface); }
 .timestamps { margin-top: 2rem; }
 

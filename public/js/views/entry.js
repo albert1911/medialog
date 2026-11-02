@@ -99,7 +99,7 @@ export async function renderEntryDetail(view, id) {
           </button>
         </div>
 
-        ${entry.content ? '<iframe class="content-frame panel" id="content-frame" title="Entry content"></iframe>' : ''}
+        ${entry.content ? '<button type="button" class="btn btn-small btn-ghost" id="fold-all" hidden></button><iframe class="content-frame panel" id="content-frame" title="Entry content"></iframe>' : ''}
 
         <section class="gallery" id="gallery"></section>
 
@@ -179,7 +179,18 @@ export async function renderEntryDetail(view, id) {
     location.hash = '#/';
   });
 
-  if (entry.content) mountContent($('#content-frame'), entry.content);
+  if (entry.content) {
+    const frame = $('#content-frame');
+    mountContent(frame, entry.content);
+    const foldAll = $('#fold-all');
+    const drawFoldAll = (allFolded) => {
+      foldAll.textContent = allFolded ? 'Expand all' : 'Collapse all';
+    };
+    drawFoldAll(false);
+    frame.addEventListener('foldable', (e) => { foldAll.hidden = !e.detail; });
+    frame.addEventListener('foldchange', (e) => drawFoldAll(e.detail));
+    $('#fold-all').addEventListener('click', () => frame.toggleAllFolds());
+  }
   await mountGallery($('#gallery'), entry);
   fill();
 }
@@ -278,11 +289,9 @@ export async function renderEntryForm(view, id, query) {
           <div class="field">
             <div class="field-head">
               <label for="content">Content</label>
-              <button type="button" class="btn btn-small btn-ghost" id="preview-toggle">Preview</button>
             </div>
             ${editorHTML()}
-            <textarea name="content" id="content" rows="10" class="mono" placeholder="<p>Notes, reviews, links, embeds…</p>">${esc(v.content)}</textarea>
-            <iframe class="content-frame panel" id="content-preview" title="Content preview" hidden></iframe>
+            <textarea name="content" id="content" hidden>${esc(v.content)}</textarea>
           </div>
         </div>
       </div>
@@ -350,17 +359,7 @@ export async function renderEntryForm(view, id, query) {
     drawCover();
   });
 
-  const previewFrame = view.querySelector('#content-preview');
-  const previewToggle = view.querySelector('#preview-toggle');
-  previewToggle.addEventListener('click', () => {
-    previewFrame.hidden = !previewFrame.hidden;
-    previewToggle.textContent = previewFrame.hidden ? 'Preview' : 'Hide preview';
-    if (!previewFrame.hidden) mountContent(previewFrame, form.elements.content.value);
-  });
   bindEditor(form, form.elements.content);
-  form.elements.content.addEventListener('input', debounce(() => {
-    if (!previewFrame.hidden) mountContent(previewFrame, form.elements.content.value);
-  }, 400));
 
   charCounter(form.elements.description);
   bindChoiceFields(form);
