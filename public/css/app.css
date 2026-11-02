@@ -654,6 +654,7 @@ legend { font-weight: 700; padding: 0 0.35rem; }
 .form-fields { display: flex; flex-direction: column; gap: 1rem; min-width: 0; }
 .form-actions {
   position: sticky;
+  z-index: 10; /* above the sticky editor bar (5) */
   bottom: -3rem;
   display: flex;
   justify-content: flex-end;
