@@ -67,6 +67,22 @@ const Fold = Extension.create({
   })],
 });
 
+// Typing a second "-" right after a "-" turns the pair into an em dash.
+const EmDash = Extension.create({
+  name: 'emDash',
+  addProseMirrorPlugins: () => [new Plugin({
+    props: {
+      handleTextInput(view, from, to, text) {
+        if (text !== '-' || from !== to || from < 2) return false;
+        const { state } = view;
+        if (state.doc.textBetween(from - 1, from, '\0', '\0') !== '-') return false;
+        view.dispatch(state.tr.replaceWith(from - 1, to, state.schema.text('—', state.doc.resolve(from).marks())));
+        return true;
+      },
+    },
+  })],
+});
+
 const BUTTONS = [
   { id: 'h2', label: 'H2', title: 'Heading (Ctrl+Alt+2)', active: ['heading', { level: 2 }], run: (c) => c.toggleHeading({ level: 2 }) },
   { id: 'h3', label: 'H3', title: 'Subheading (Ctrl+Alt+3)', active: ['heading', { level: 3 }], run: (c) => c.toggleHeading({ level: 3 }) },
@@ -142,7 +158,7 @@ export function bindEditor(root, textarea) {
   editor = new Editor({
     element: host,
     extensions: [StarterKit.configure({ link: { openOnClick: false }, trailingNode: false }),
-      TextAlign.configure({ types: ['heading', 'paragraph'] }), Card, Fold],
+      TextAlign.configure({ types: ['heading', 'paragraph'] }), Card, Fold, EmDash],
     content: textarea.value,
     editorProps: {
       attributes: { class: 'rich-content', 'aria-label': 'Content' },
