@@ -48,6 +48,7 @@ const Fold = Extension.create({
           const isFolded = folded.includes(pos);
           if (isFolded) hideUntil = node.attrs.level;
           decos.push(Decoration.node(pos, pos + node.nodeSize, { class: isFolded ? 'is-folded' : '' }));
+          if (node.content.size === 0) return; // a toggle in an empty heading pushes the caret to the right
           decos.push(Decoration.widget(pos + node.nodeSize - 1, (view) => {
             const btn = document.createElement('span');
             btn.className = 'fold-toggle';
@@ -72,6 +73,7 @@ const BUTTONS = [
   { id: 'bold', icon: 'bold', title: 'Bold (Ctrl+B)', cls: 'ed-bold', active: ['bold'], run: (c) => c.toggleBold() },
   { id: 'italic', icon: 'italic', title: 'Italic (Ctrl+I)', cls: 'ed-italic', active: ['italic'], run: (c) => c.toggleItalic() },
   { id: 'underline', icon: 'underline', title: 'Underline (Ctrl+U)', cls: 'ed-underline', active: ['underline'], run: (c) => c.toggleUnderline() },
+  { id: 'strike', label: 'S', title: 'Strikethrough (Ctrl+Shift+S)', cls: 'ed-strike', active: ['strike'], run: (c) => c.toggleStrike() },
   { id: 'link', icon: 'link', title: 'Link (Ctrl+K)', active: ['link'], run: null },
   { id: 'ul', icon: 'ul', title: 'Bulleted list (Ctrl+Shift+8)', active: ['bulletList'], run: (c) => c.toggleBulletList() },
   { id: 'ol', icon: 'ol', title: 'Numbered list (Ctrl+Shift+7)', active: ['orderedList'], run: (c) => c.toggleOrderedList() },
