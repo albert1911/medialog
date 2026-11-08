@@ -79,6 +79,7 @@ export async function mountGallery(section, entry) {
   // While a tile is being dragged, redraws (another change, a sync) wait until it's dropped.
   let dragActive = false;
   let redrawPending = false;
+  const thumbs = new Map(); // image id -> { el, url }: loaded thumbnails kept across redraws
 
   async function draw() {
     images = G.resolveGroups(await Gallery.byEntry(entry.id));
@@ -130,9 +131,18 @@ export async function mountGallery(section, entry) {
 
     section.querySelectorAll('.gallery-tile').forEach((tile) => {
       const item = items[Number(tile.dataset.index)];
+      // Reuse the already loaded <img> from the previous draw, so redraws don't blink.
+      const thumbKey = item.image?.id ?? 'cover';
+      const known = thumbs.get(thumbKey);
+      if (known) {
+        tile.querySelector('img').replaceWith(known.el);
+        if (known.el.hidden) tile.classList.add('unavailable');
+      }
       tile.loadThumb = async () => {
         const url = await item.url('thumb');
+        const cached = thumbs.get(thumbKey);
         if (!url) return tile.classList.add('unavailable');
+        if (cached && cached.url === url && !cached.el.hidden) return; // already showing it
         const el = tile.querySelector('img');
         // A damaged file: show the "not available" placeholder instead of a broken-image icon.
         el.onerror = () => {
@@ -141,6 +151,8 @@ export async function mountGallery(section, entry) {
         };
         el.src = url;
         el.hidden = false;
+        tile.classList.remove('unavailable');
+        thumbs.set(thumbKey, { el, url });
       };
       thumbObserver.observe(tile);
       tile.addEventListener('click', (event) => {
