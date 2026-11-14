@@ -538,10 +538,10 @@ function openViewer(items, start, onChange) {
     }
   }
 
-  // ---- zoom (touch screens only): pinch, double-tap, drag to look around. With a mouse the
-  //      viewer just shows the image: no zooming, a click on the backdrop closes it.
+  // ---- zoom (touch screens only): pinch, drag to look around. With a mouse the viewer just
+  //      shows the image: no zooming, a click on the backdrop closes it. A click/tap on the
+  //      image hides or shows all the controls (the `bare` class).
   const MAX_ZOOM = 4;
-  const DOUBLE_TAP_ZOOM = 2.5;
   let zoom = 1;
   let panX = 0;
   let panY = 0;
@@ -564,18 +564,8 @@ function openViewer(items, start, onChange) {
     dialog.classList.toggle('zoomed', zoom > 1);
   }
 
-  // Zoom to `z`, keeping the image point under (px, py) on screen where it is.
-  function zoomAround(z, px, py, animate = false) {
-    const c = centre();
-    const target = Math.max(1, Math.min(MAX_ZOOM, z));
-    const localX = (px - c.x - panX) / zoom;
-    const localY = (py - c.y - panY) / zoom;
-    setZoom(target, px - c.x - target * localX, py - c.y - target * localY, animate);
-  }
-
   const pointers = new Map(); // active fingers / mouse: id -> { x, y }
   let gesture = null; // what the current touch is doing
-  let lastTap = null; // for double-tap
   let suppressClick = false; // a drag/pinch ending on the backdrop must not close the viewer
   // Where the press started. Once the viewer captures the pointer (so drags keep working),
   // the browser reports the resulting click on the viewer itself, so e.target can't tell
@@ -639,23 +629,13 @@ function openViewer(items, start, onChange) {
     if (!ended || ended.type !== 'drag' || ended.wasPinch) return;
     const dx = e.clientX - ended.x;
     if (ended.moved) {
+      suppressClick = true; // a drag isn't a tap
       // un-zoomed: a horizontal swipe changes image (zoomed, a drag only moves the image)
       if (zoom === 1 && items.length > 1 && Math.abs(dx) > 50) {
         suppressClick = true;
         show(index + (dx < 0 ? 1 : -1));
       }
       return;
-    }
-    if (e.pointerType === 'mouse') return; // no zooming with a mouse
-    // Touch: double-tap toggles zoom (a single tap shouldn't zoom by accident).
-    const now = Date.now();
-    if (lastTap && now - lastTap.time < 300 && Math.hypot(e.clientX - lastTap.x, e.clientY - lastTap.y) < 30 && !imgEl.hidden) {
-      lastTap = null;
-      suppressClick = true;
-      if (zoom > 1) setZoom(1, 0, 0, true);
-      else zoomAround(DOUBLE_TAP_ZOOM, e.clientX, e.clientY, true);
-    } else {
-      lastTap = { time: now, x: e.clientX, y: e.clientY };
     }
   }
   dialog.addEventListener('pointerup', endPointer);
@@ -667,8 +647,10 @@ function openViewer(items, start, onChange) {
   dialog.querySelector('.next').addEventListener('click', () => show(index + 1));
   dialog.querySelector('[data-v=close]').addEventListener('click', close);
   dialog.addEventListener('click', (e) => {
-    // a click on the backdrop closes the viewer, unless it ended a drag, pinch or double-tap
+    // a click on the backdrop closes the viewer; a click on the image hides/shows the controls.
+    // Neither applies if the press ended a drag or pinch.
     if (pressedOn === 'backdrop' && !suppressClick && zoom === 1) close();
+    else if (pressedOn === 'image' && !suppressClick) dialog.classList.toggle('bare');
     suppressClick = false;
   });
   dialog.addEventListener('keydown', (e) => {
