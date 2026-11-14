@@ -342,7 +342,13 @@ function openViewer(items, start, onChange) {
   let index = start;
   const dialog = document.createElement('dialog');
   dialog.className = 'viewer';
+  dialog.dataset.ui = 'full'; // 'full' | 'zoom' (touch: zoom buttons only) | 'bare' (nothing)
   dialog.innerHTML = `
+    <div class="viewer-zoombar">
+      <button type="button" class="btn btn-small" data-v="fit-width">Fit width</button>
+      <button type="button" class="btn btn-small" data-v="fit-height">Fit height</button>
+      <button type="button" class="btn btn-small" data-v="zoom-reset">Reset</button>
+    </div>
     <img class="viewer-img" alt="" draggable="false">
     <span class="viewer-spinner" aria-hidden="true" hidden></span>
     <p class="viewer-note" hidden>This image isn't available on this device yet.</p>
@@ -541,7 +547,7 @@ function openViewer(items, start, onChange) {
   // ---- zoom (touch screens only): pinch, drag to look around. With a mouse the viewer just
   //      shows the image: no zooming, a click on the backdrop closes it. A click/tap on the
   //      image hides or shows all the controls (the `bare` class).
-  const MAX_ZOOM = 4;
+  const MAX_ZOOM = 8; // high enough for "fit width" on a narrow webtoon strip
   let zoom = 1;
   let panX = 0;
   let panY = 0;
@@ -571,6 +577,17 @@ function openViewer(items, start, onChange) {
   // the browser reports the resulting click on the viewer itself, so e.target can't tell
   // the image and the dark backdrop apart; this can.
   let pressedOn = null; // 'image' | 'backdrop' | null
+  let pressedWith = 'mouse'; // pointerType of that press
+
+  // Zoom buttons (touch UI): fit the image to the screen width or height, or reset.
+  const fitZoom = (axis) => {
+    const z = axis === 'width' ? dialog.clientWidth / imgEl.offsetWidth : dialog.clientHeight / imgEl.offsetHeight;
+    // fit width on a tall image starts at its top (Infinity is clamped to the top edge)
+    setZoom(z, 0, axis === 'width' ? Infinity : 0, true);
+  };
+  dialog.querySelector('[data-v=fit-width]').addEventListener('click', () => fitZoom('width'));
+  dialog.querySelector('[data-v=fit-height]').addEventListener('click', () => fitZoom('height'));
+  dialog.querySelector('[data-v=zoom-reset]').addEventListener('click', () => setZoom(1, 0, 0, true));
 
   const distance = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
   const midpoint = (a, b) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
@@ -588,6 +605,7 @@ function openViewer(items, start, onChange) {
 
   dialog.addEventListener('pointerdown', (e) => {
     pressedOn = e.target === imgEl ? 'image' : e.target === dialog ? 'backdrop' : null;
+    pressedWith = e.pointerType;
     if (e.target.closest('button, .viewer-caption') || e.button > 0) return; // buttons and the description work normally
     pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
     dialog.setPointerCapture?.(e.pointerId);
@@ -650,7 +668,12 @@ function openViewer(items, start, onChange) {
     // a click on the backdrop closes the viewer; a click on the image hides/shows the controls.
     // Neither applies if the press ended a drag or pinch.
     if (pressedOn === 'backdrop' && !suppressClick && zoom === 1) close();
-    else if (pressedOn === 'image' && !suppressClick) dialog.classList.toggle('bare');
+    else if (pressedOn === 'image' && !suppressClick) {
+      // touch cycles full UI -> zoom buttons -> no UI; a mouse just toggles full UI <-> no UI
+      const order = pressedWith === 'mouse' ? ['full', 'bare'] : ['full', 'zoom', 'bare'];
+      const next = order[(order.indexOf(dialog.dataset.ui) + 1) % order.length];
+      dialog.dataset.ui = next;
+    }
     suppressClick = false;
   });
   dialog.addEventListener('keydown', (e) => {

@@ -890,7 +890,23 @@ legend { font-weight: 700; padding: 0 0.35rem; }
 .viewer-bar { flex-wrap: wrap; }
 /* tap/click the image to hide every control and text, again to bring them back */
 .viewer-nav, .viewer-bar { transition: opacity 0.2s, visibility 0.2s; }
-.viewer.bare .viewer-nav, .viewer.bare .viewer-bar { opacity: 0; visibility: hidden; }
+.viewer[data-ui=zoom] .viewer-nav, .viewer[data-ui=zoom] .viewer-bar,
+.viewer[data-ui=bare] .viewer-nav, .viewer[data-ui=bare] .viewer-bar { opacity: 0; visibility: hidden; }
+.viewer-img.animating { transition: transform 0.2s ease-out, opacity 0.15s; }
+/* touch-only middle state: just the zoom buttons */
+.viewer-zoombar {
+  position: absolute;
+  inset: auto 0 calc(1rem + env(safe-area-inset-bottom)) 0;
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  z-index: 1;
+  pointer-events: none; /* the strip itself mustn't block taps on the image */
+  transition: opacity 0.2s, visibility 0.2s;
+}
+.viewer-zoombar .btn { pointer-events: auto; }
+.viewer-zoombar .btn { background: rgb(0 0 0 / 0.6); border-color: rgb(255 255 255 / 0.25); color: #fff; }
+.viewer:not([data-ui=zoom]) .viewer-zoombar { opacity: 0; visibility: hidden; }
 .viewer-caption { flex-basis: 100%; margin: 0 auto; color: #fff; }
 .viewer-desc { 
   margin: 0; 
