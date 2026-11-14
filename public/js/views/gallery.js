@@ -350,14 +350,14 @@ function openViewer(items, start, onChange) {
     <button type="button" class="viewer-nav next" aria-label="Next image">›</button>
     <div class="viewer-bar">
       <div class="viewer-caption" hidden>
-        <div class="viewer-desc-row">
+        <span class="viewer-desc-row">
           <p class="viewer-shared small" hidden>
             <span class="viewer-shared-text"></span>
             <button type="button" class="link-btn" data-v="unlink">Unlink</button>
           </p>
           <p class="viewer-desc" title="Tap to hide"></p>
           <button type="button" class="link-btn" data-v="desc-show" hidden>Show description</button>
-        </div>
+        </span>
         <form class="viewer-desc-form" hidden>
           <textarea rows="3" maxlength="1000" placeholder="Description (optional)" aria-label="Description"></textarea>
           <div class="row">
