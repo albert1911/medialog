@@ -526,6 +526,13 @@ function openViewer(items, start, onChange) {
     if (url) {
       imgEl.src = url;
       imgEl.hidden = false;
+      if (fitMode) {
+        // keep the chosen fit (width/height) from the previous image; needs the new image's size
+        try { await imgEl.decode(); } catch { /* sized below anyway */ }
+        if (index !== items.indexOf(item)) return;
+        fitZoom(fitMode);
+        imgEl.classList.remove('animating'); // no zoom animation on a new image
+      }
       if (item.cover && !item.image) {
         // a web cover's own link, or the uploaded cover's local copy (that one only opens on phones)
         originalLink.href = url;
@@ -580,14 +587,16 @@ function openViewer(items, start, onChange) {
   let pressedWith = 'mouse'; // pointerType of that press
 
   // Zoom buttons (touch UI): fit the image to the screen width or height, or reset.
+  let fitMode = null; // 'width' | 'height' | null: re-applied to each image you swipe to
   const fitZoom = (axis) => {
+    fitMode = axis;
     const z = axis === 'width' ? dialog.clientWidth / imgEl.offsetWidth : dialog.clientHeight / imgEl.offsetHeight;
     // fit width on a tall image starts at its top (Infinity is clamped to the top edge)
     setZoom(z, 0, axis === 'width' ? Infinity : 0, true);
   };
   dialog.querySelector('[data-v=fit-width]').addEventListener('click', () => fitZoom('width'));
   dialog.querySelector('[data-v=fit-height]').addEventListener('click', () => fitZoom('height'));
-  dialog.querySelector('[data-v=zoom-reset]').addEventListener('click', () => setZoom(1, 0, 0, true));
+  dialog.querySelector('[data-v=zoom-reset]').addEventListener('click', () => { fitMode = null; setZoom(1, 0, 0, true); });
 
   const distance = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
   const midpoint = (a, b) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
@@ -626,6 +635,7 @@ function openViewer(items, start, onChange) {
       const localY = (gesture.mid.y - c.y - gesture.panY) / gesture.zoom;
       setZoom(z, mid.x - c.x - z * localX, mid.y - c.y - z * localY);
       suppressClick = true;
+      fitMode = null; // a manual pinch replaces the fit
     } else if (gesture.type === 'drag') {
       const dx = e.clientX - gesture.x;
       const dy = e.clientY - gesture.y;
