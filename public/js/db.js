@@ -10,6 +10,10 @@
 // keyed by a fingerprint of their content, so identical images are stored once.
 // plus tracking columns on media_entries: status, progress, score, started_at, completed_at.
 //
+// Activity log: activity_log holds one append-only record per tracking change (progress, status,
+// score), written in the same transaction as the entry change. Quick successive changes of the
+// same kind to one entry (within 30 seconds) are merged into one record.
+//
 // Sync-friendly details:
 // - ids are random UUID strings, so records created on different devices never collide;
 // - deleting keeps a tombstone { id, created_at, updated_at, deleted_at } so the deletion
@@ -21,14 +25,15 @@
 import { STATUS_VALUES, base64ToBytes, bytesToBase64, isISODate, isSafeId, todayISO } from './util.js';
 
 const DB_NAME = 'medialog';
-const DB_VERSION = 5;
+const DB_VERSION = 6;
 export const SOURCES = 'media_sources';
 export const ENTRIES = 'media_entries';
+export const ACTIVITY = 'activity_log'; // { id, entry_id, type: progress|status|score, from, to, auto?, at, timestamps }
 export const GALLERY = 'gallery_images'; // { id, entry_id, cloud, public_id, version, format, width, height, pending, timestamps }
 const COVERS = 'covers'; // uploaded cover images: { id: "<sha256>.<ext>", blob, created_at }
 const GALLERY_CACHE = 'gallery_cache'; // { key: "<image id>:thumb|full", image_id, blob } — this device only
 const META = 'meta'; // device settings: backup file handle, sync config…
-const SYNCED = [SOURCES, ENTRIES, GALLERY];
+const SYNCED = [SOURCES, ENTRIES, GALLERY, ACTIVITY];
 
 export const COVER_PREFIX = 'cover:';
 const COVER_ID = /^[0-9a-f]{64}\.[a-z0-9]+$/;
@@ -66,6 +71,11 @@ function createDataStores(db) {
   if (!db.objectStoreNames.contains(COVERS)) db.createObjectStore(COVERS, { keyPath: 'id' });
   if (!db.objectStoreNames.contains(GALLERY)) {
     db.createObjectStore(GALLERY, { keyPath: 'id' }).createIndex('entry_id', 'entry_id');
+  }
+  if (!db.objectStoreNames.contains(ACTIVITY)) {
+    const activity = db.createObjectStore(ACTIVITY, { keyPath: 'id' });
+    activity.createIndex('entry_id', 'entry_id');
+    activity.createIndex('at', 'at');
   }
   if (!db.objectStoreNames.contains(GALLERY_CACHE)) {
     db.createObjectStore(GALLERY_CACHE, { keyPath: 'key' }).createIndex('image_id', 'image_id');
@@ -358,6 +368,69 @@ export const Sources = {
   },
 };
 
+// ---------------------------------------------------------------- activity
+
+const MERGE_WINDOW_MS = 30 * 1000;
+const ACTIVITY_TYPES = ['progress', 'status', 'score'];
+
+function normalizeActivity(data) {
+  if (!isSafeId(data.entry_id)) throw new Error('Activity without an entry.');
+  if (!ACTIVITY_TYPES.includes(data.type)) throw new Error('Unknown activity type.');
+  if (typeof data.at !== 'string' || Number.isNaN(Date.parse(data.at))) throw new Error('Activity without a time.');
+  const value = (v) => {
+    if (data.type === 'status') return STATUS_VALUES.includes(v) ? v : null;
+    return v != null && Number.isFinite(Number(v)) ? Number(v) : null;
+  };
+  return {
+    entry_id: data.entry_id,
+    type: data.type,
+    from: value(data.from),
+    to: value(data.to),
+    auto: Boolean(data.auto), // a status change made by the tracking rules, not picked by the user
+    at: data.at,
+  };
+}
+
+// Writes the activity rows for one entry change, inside the entry's transaction. A change of the
+// same kind within the merge window extends the previous row instead of adding a new one
+// (+1 +1 +1 becomes one "1 → 4"); a change that undoes itself removes that row.
+async function logActivity(tx, prev, record, requestedStatus, now) {
+  const changes = [];
+  if (record.progress !== prev.progress) changes.push({ type: 'progress', from: prev.progress, to: record.progress });
+  if (record.status !== prev.status) {
+    changes.push({ type: 'status', from: prev.status, to: record.status, auto: requestedStatus === prev.status });
+  }
+  if ((record.score ?? null) !== (prev.score ?? null)) changes.push({ type: 'score', from: prev.score ?? null, to: record.score ?? null });
+  if (!changes.length) return;
+
+  const store = tx.objectStore(ACTIVITY);
+  const rows = (await wrap(store.index('entry_id').getAll(record.id))).filter(live);
+  for (const change of changes) {
+    const last = rows.filter((r) => r.type === change.type).sort((a, b) => b.at.localeCompare(a.at))[0];
+    if (last && Date.parse(now) - Date.parse(last.at) <= MERGE_WINDOW_MS) {
+      if (last.from === change.to) {
+        store.put(tombstone(last, now));
+      } else {
+        store.put({ ...last, to: change.to, auto: Boolean(last.auto && change.auto), at: now, updated_at: now });
+      }
+      continue;
+    }
+    store.put({ id: newId(), ...normalizeActivity({ ...change, entry_id: record.id, at: now }), created_at: now, updated_at: now });
+  }
+}
+
+export const Activity = {
+  all() {
+    return withTx([ACTIVITY], 'readonly', (tx) => getAllLive(tx, ACTIVITY));
+  },
+
+  byEntry(entryId) {
+    return withTx([ACTIVITY], 'readonly', (tx) =>
+      wrap(tx.objectStore(ACTIVITY).index('entry_id').getAll(String(entryId))).then((rows) => rows.filter(live)),
+    );
+  },
+};
+
 // ---------------------------------------------------------------- entries
 
 export const Entries = {
@@ -378,7 +451,7 @@ export const Entries = {
 
   async save(data, id = null) {
     const fields = normalizeEntry(data);
-    return withTx([ENTRIES, SOURCES], 'readwrite', async (tx) => {
+    return withTx([ENTRIES, SOURCES, ACTIVITY], 'readwrite', async (tx) => {
       const store = tx.objectStore(ENTRIES);
       const now = new Date().toISOString();
       let prev = null;
@@ -398,6 +471,7 @@ export const Entries = {
       record.created_at = prev?.created_at ?? now;
       record.updated_at = now;
       await wrap(store.put(record));
+      if (prev) await logActivity(tx, prev, record, fields.status, now);
       return record;
     });
   },
@@ -409,14 +483,18 @@ export const Entries = {
     return this.save({ ...current, ...patch }, id);
   },
 
-  // Deleting an entry also deletes its gallery images.
+  // Deleting an entry also deletes its gallery images and activity log.
   remove(id) {
-    return withTx([ENTRIES, GALLERY], 'readwrite', async (tx) => {
+    return withTx([ENTRIES, GALLERY, ACTIVITY], 'readwrite', async (tx) => {
       const store = tx.objectStore(ENTRIES);
       const entry = await wrap(store.get(String(id)));
       if (!live(entry)) return;
       const now = new Date().toISOString();
       store.put(tombstone(entry, now));
+      const activity = tx.objectStore(ACTIVITY);
+      for (const row of await wrap(activity.index('entry_id').getAll(String(id)))) {
+        if (live(row)) activity.put(tombstone(row, now));
+      }
       const gallery = tx.objectStore(GALLERY);
       for (const image of await wrap(gallery.index('entry_id').getAll(String(id)))) {
         if (live(image)) gallery.put(tombstone(image, now));
@@ -614,7 +692,7 @@ export function counts() {
 // User-facing backup: live records only, plus the uploaded images they use (as base64,
 // so the backup is a single self-contained file).
 export async function exportData() {
-  const data = await withTx([SOURCES, ENTRIES, GALLERY, COVERS], 'readonly', async (tx) => {
+  const data = await withTx([SOURCES, ENTRIES, GALLERY, ACTIVITY, COVERS], 'readonly', async (tx) => {
     const entries = await getAllLive(tx, ENTRIES);
     const used = new Set(entries.filter((e) => isCoverRef(e.cover_image)).map((e) => coverIdOf(e.cover_image)));
     return {
@@ -625,6 +703,7 @@ export async function exportData() {
       media_entries: entries,
       // Links to gallery images on Cloudinary (the images themselves stay there).
       gallery_images: (await getAllLive(tx, GALLERY)).filter((g) => !g.pending),
+      activity_log: await getAllLive(tx, ACTIVITY),
       covers: (await wrap(tx.objectStore(COVERS).getAll())).filter((c) => used.has(c.id)),
     };
   });
@@ -675,10 +754,12 @@ export async function importData(data, mode = 'merge') {
   const entryIds = new Set(entries.map((e) => e.id));
   const gallery = prepare(Array.isArray(data.gallery_images) ? data.gallery_images : [], normalizeGalleryImage, 'Gallery image')
     .filter((g) => entryIds.has(g.entry_id) && g.public_id && !g.pending);
+  const activity = prepare(Array.isArray(data.activity_log) ? data.activity_log : [], normalizeActivity, 'Activity')
+    .filter((a) => entryIds.has(a.entry_id));
 
-  return withTx([SOURCES, ENTRIES, GALLERY, COVERS], 'readwrite', async (tx) => {
+  return withTx([SOURCES, ENTRIES, GALLERY, ACTIVITY, COVERS], 'readwrite', async (tx) => {
     for (const cover of covers) tx.objectStore(COVERS).put(cover);
-    for (const [storeName, rows] of [[SOURCES, sources], [ENTRIES, entries], [GALLERY, gallery]]) {
+    for (const [storeName, rows] of [[SOURCES, sources], [ENTRIES, entries], [GALLERY, gallery], [ACTIVITY, activity]]) {
       const store = tx.objectStore(storeName);
       const existing = new Map((await wrap(store.getAll())).map((r) => [r.id, r]));
       const incoming = new Set(rows.map((r) => r.id));

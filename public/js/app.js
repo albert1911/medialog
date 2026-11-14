@@ -9,6 +9,7 @@ import { renderLibrary } from './views/library.js';
 import { renderEntryDetail, renderEntryForm } from './views/entry.js';
 import { renderSourceDetail, renderSourceForm, renderSourcesList } from './views/sources.js';
 import { renderSettings } from './views/settings.js';
+import { renderRecap } from './views/activity.js';
 
 // Hash routes: [pattern, render(view, id, query), nav section, page title]
 const routes = [
@@ -20,6 +21,7 @@ const routes = [
   [/^\/sources\/new$/, (v) => renderSourceForm(v, null), 'sources', 'New source'],
   [/^\/sources\/([\w-]+)$/, (v, id) => renderSourceDetail(v, id), 'sources', 'Source'],
   [/^\/sources\/([\w-]+)\/edit$/, (v, id) => renderSourceForm(v, id), 'sources', 'Edit source'],
+  [/^\/recap$/, (v) => renderRecap(v), 'recap', 'Recap'],
   [/^\/settings$/, (v) => renderSettings(v), 'settings', 'Settings'],
 ];
 

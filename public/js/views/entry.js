@@ -1,6 +1,7 @@
 import { Covers, Entries, Gallery, Sources, ValidationError, isCoverRef } from '../db.js';
 import { addImages, deleteImage, getConfig } from '../gallery.js';
 import { mountGallery } from './gallery.js';
+import { mountActivity } from './activity.js';
 import {
   STATUSES, byText, debounce, esc, fmtDate, fmtDateTime,
   imageToBlob, probeAspect, safeHref, safeImg, statusLabel, tagList, tagsOf, toast,
@@ -101,6 +102,8 @@ export async function renderEntryDetail(view, id) {
 
         ${entry.content ? '<button type="button" class="btn btn-small btn-ghost" id="fold-all" hidden></button><iframe class="content-frame panel" id="content-frame" title="Entry content"></iframe>' : ''}
 
+        <section class="activity" id="activity" hidden></section>
+
         <section class="gallery" id="gallery"></section>
 
         <p class="muted small timestamps">Added ${fmtDateTime(entry.created_at)} · Updated <span id="updated-at">${fmtDateTime(entry.updated_at)}</span></p>
@@ -143,6 +146,7 @@ export async function renderEntryDetail(view, id) {
       showStatus(`Not saved: ${err.message}`, 'error'); // fill() below puts back the saved value
     }
     fill();
+    mountActivity($('#activity'), entry).catch((err) => console.warn('Activity failed', err));
   }
 
   // Number fields save when you leave them or press Enter; say so while they're being edited.
@@ -191,6 +195,7 @@ export async function renderEntryDetail(view, id) {
     frame.addEventListener('foldchange', (e) => drawFoldAll(e.detail));
     $('#fold-all').addEventListener('click', () => frame.toggleAllFolds());
   }
+  await mountActivity($('#activity'), entry);
   await mountGallery($('#gallery'), entry);
   fill();
 }

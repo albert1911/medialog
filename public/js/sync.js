@@ -23,7 +23,7 @@ const DATA_FILE = 'medialog.json';
 const PUSH_DELAY_MS = 4000;
 const PULL_INTERVAL_MS = 5 * 60 * 1000;
 const DOWNLOAD_PARALLEL = 4;
-const STORES = ['media_sources', 'media_entries', 'gallery_images'];
+const STORES = ['media_sources', 'media_entries', 'gallery_images', 'activity_log'];
 
 const HOUR = 60 * 60 * 1000;
 const UPLOAD_GAP_MS = 1000; // ≤ 60 images per minute (GitHub allows 80)
@@ -247,7 +247,7 @@ async function syncRecords() {
 
     if (needPush) {
       const merged = await snapshot();
-      const file = { app: 'medialog', kind: 'sync', version: 3, synced_at: new Date().toISOString(), ...merged };
+      const file = { app: 'medialog', kind: 'sync', version: 4, synced_at: new Date().toISOString(), ...merged };
       if (!(await writeDataFile(file, remote.sha))) continue; // someone else pushed first: merge again
     }
     return pulledCount;

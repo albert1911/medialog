@@ -999,3 +999,33 @@ legend { font-weight: 700; padding: 0 0.35rem; }
 .choice-dialog::backdrop { background: rgb(0 0 0 / 0.5); }
 .choice-dialog h2 { margin: 0 0 0.5rem; font-size: 1.1rem; }
 .choice-dialog .stack { display: grid; gap: 8px; margin-top: 1rem; }
+
+/* ---- activity log + recap */
+.activity { margin-top: 1.5rem; }
+.act-day { margin: 1rem 0 0.25rem; font-size: 0.85rem; color: var(--muted); font-weight: 600; }
+.act-list { list-style: none; margin: 0; padding: 0; }
+.act-row { display: flex; align-items: baseline; gap: 0.6rem; padding: 0.2rem 0; }
+.act-time { min-width: 3.4rem; }
+.act-icon { width: 1rem; text-align: center; color: var(--accent); }
+.act-entry { font-weight: 600; margin-right: 0.5rem; }
+.act-delta { color: var(--ok); font-weight: 600; margin-left: 0.25rem; }
+
+.recap-controls { display: flex; flex-wrap: wrap; gap: 0.75rem 1.5rem; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
+.recap-controls .seg { display: flex; gap: 0.35rem; }
+.recap-nav { display: flex; align-items: center; gap: 0.6rem; }
+.recap-label { min-width: 9rem; text-align: center; }
+.recap-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; }
+.recap-stats .panel { display: flex; flex-direction: column; align-items: center; padding: 0.75rem; }
+.recap-stats strong { font-size: 1.6rem; line-height: 1.2; }
+.recap-h { margin: 1.5rem 0 0.5rem; }
+.recap-bar-row { display: flex; align-items: center; gap: 0.75rem; padding: 0.2rem 0; }
+.recap-bar-label { flex: 0 0 30%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.recap-bar-value { min-width: 2rem; text-align: right; }
+.recap-bar-row .bar { height: 8px; }
+.recap-days { display: flex; align-items: flex-end; gap: 2px; height: 90px; }
+.recap-day { flex: 1; min-width: 2px; background: var(--accent); border-radius: 2px 2px 0 0; opacity: 0.85; }
+.recap-completed { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.5rem; }
+.recap-completed li { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; }
+.recap-completed a { display: flex; align-items: center; gap: 0.75rem; min-width: 0; }
+.recap-completed a span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cover-sm { width: 36px; flex: none; aspect-ratio: 2 / 3; border-radius: 4px; overflow: hidden; }

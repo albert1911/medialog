@@ -2,8 +2,8 @@
 // (and set RELEASED to today) so installed copies download the new files:
 //   new feature / behavior change → +1  ('23.4' → '24')
 //   small UI adjustment           → +.1 ('23' → '23.1')
-const VERSION = '38.3.4';
-const RELEASED = '2026-11-04';
+const VERSION = '39';
+const RELEASED = '2026-11-14';
 const CACHE = `medialog-v${VERSION}`;
 
 const SHELL = [
@@ -27,6 +27,7 @@ const SHELL = [
   './js/views/sources.js',
   './js/views/settings.js',
   './js/views/gallery.js',
+  './js/views/activity.js',
   './icons/icon.svg',
   './icons/icon-192.png',
   './icons/icon-512.png',
