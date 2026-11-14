@@ -648,8 +648,12 @@ function openViewer(items, start, onChange) {
     const dx = e.clientX - ended.x;
     if (ended.moved) {
       suppressClick = true; // a drag isn't a tap
-      // un-zoomed: a horizontal swipe changes image (zoomed, a drag only moves the image)
-      if (zoom === 1 && items.length > 1 && Math.abs(dx) > 50) {
+      // A horizontal swipe changes image when un-zoomed, or when zoomed and the drag started with
+      // the image already against the screen edge it's being pulled away from (otherwise it just pans).
+      const dy = e.clientY - ended.y;
+      const maxX = Math.max(0, (zoom * imgEl.offsetWidth - dialog.clientWidth) / 2);
+      const atEdge = zoom === 1 || (Math.abs(dx) > Math.abs(dy) && (dx < 0 ? ended.panX <= -maxX + 1 : ended.panX >= maxX - 1));
+      if (atEdge && items.length > 1 && Math.abs(dx) > 50) {
         suppressClick = true;
         show(index + (dx < 0 ? 1 : -1));
       }
