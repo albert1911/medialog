@@ -548,10 +548,11 @@ function openViewer(items, start, onChange) {
   // The image sits centred in the viewer; zoom/pan are applied on top of that (transform).
   const centre = () => ({ x: dialog.clientWidth / 2, y: dialog.clientHeight / 2 });
 
-  // Keep the zoomed image covering the space it had, so it can't be dragged off screen.
+  // Only pan along an axis while the zoomed image is larger than the screen on it; otherwise it
+  // stays centred (e.g. a tall webtoon that's still narrower than the screen can't slide sideways).
   function clampPan(x, y, z) {
-    const maxX = ((z - 1) * imgEl.offsetWidth) / 2;
-    const maxY = ((z - 1) * imgEl.offsetHeight) / 2;
+    const maxX = Math.max(0, (z * imgEl.offsetWidth - dialog.clientWidth) / 2);
+    const maxY = Math.max(0, (z * imgEl.offsetHeight - dialog.clientHeight) / 2);
     return [Math.max(-maxX, Math.min(maxX, x)), Math.max(-maxY, Math.min(maxY, y))];
   }
 
