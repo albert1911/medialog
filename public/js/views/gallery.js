@@ -516,21 +516,28 @@ function openViewer(items, start, onChange) {
     note.hidden = true;
     renderCaption();
 
-    // Dim the previous image right away; show a spinner only if preparing takes a moment.
-    imgEl.classList.add('switching');
-    const spinnerTimer = setTimeout(() => (spinner.hidden = false), 150);
+    // Only if preparing takes a moment: dim the previous image and show a spinner. When the
+    // image is already preloaded the swap below is instant, with no dimming or fade.
+    const spinnerTimer = setTimeout(() => {
+      imgEl.classList.add('switching');
+      spinner.hidden = false;
+    }, 150);
     const url = await prepare(item);
     clearTimeout(spinnerTimer);
     if (index !== items.indexOf(item)) return; // swiped on meanwhile
     spinner.hidden = true;
     if (url) {
-      imgEl.classList.add('fitting'); // invisible while the new image gets its zoom, then it fades in
       imgEl.src = url;
       imgEl.hidden = false;
       if (fitMode) {
-        // keep the chosen fit (width/height) from the previous image; needs the new image's size
-        try { await imgEl.decode(); } catch { /* sized below anyway */ }
-        if (index !== items.indexOf(item)) return;
+        // keep the chosen fit (width/height) from the previous image. The image was already
+        // decoded by prepare(), so its size is normally known right away and the zoom is set
+        // in the same frame as the swap (nothing flashes). Only if not, hide it until it is.
+        if (!imgEl.offsetWidth) {
+          imgEl.classList.add('fitting');
+          try { await imgEl.decode(); } catch { /* sized below anyway */ }
+          if (index !== items.indexOf(item)) return;
+        }
         fitZoom(fitMode);
       } else {
         setZoom(1, 0, 0); // every image otherwise starts un-zoomed
