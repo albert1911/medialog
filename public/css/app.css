@@ -892,6 +892,7 @@ legend { font-weight: 700; padding: 0 0.35rem; }
 .viewer-nav, .viewer-bar { transition: opacity 0.2s, visibility 0.2s; }
 .viewer[data-ui=zoom] .viewer-nav, .viewer[data-ui=zoom] .viewer-bar,
 .viewer[data-ui=bare] .viewer-nav, .viewer[data-ui=bare] .viewer-bar { opacity: 0; visibility: hidden; }
+.viewer-img.fitting { opacity: 0; transition: none; } /* hidden for the instant a new image is sized */
 .viewer-img.animating { transition: transform 0.2s ease-out, opacity 0.15s; }
 /* touch-only middle state: just the zoom buttons */
 .viewer-zoombar {

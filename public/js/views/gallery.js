@@ -506,7 +506,7 @@ function openViewer(items, start, onChange) {
   async function show(i) {
     index = (i + items.length) % items.length;
     const item = items[index];
-    setZoom(1, 0, 0); // every image starts un-zoomed
+    // (the zoom is set when the new image is swapped in below, so the old one doesn't jump meanwhile)
     dialog.querySelector('.viewer-count').textContent = `${item.cover ? (item.image ? 'Cover · ' : 'Cover (local) · ') : ''}${index + 1} / ${items.length}`;
     dialog.querySelectorAll('.viewer-nav').forEach((b) => (b.hidden = items.length < 2));
     deleteButton.hidden = !item.image; // the display-only cover is changed via Edit, not here
@@ -524,6 +524,7 @@ function openViewer(items, start, onChange) {
     if (index !== items.indexOf(item)) return; // swiped on meanwhile
     spinner.hidden = true;
     if (url) {
+      imgEl.classList.add('fitting'); // invisible while the new image gets its zoom, then it fades in
       imgEl.src = url;
       imgEl.hidden = false;
       if (fitMode) {
@@ -531,8 +532,11 @@ function openViewer(items, start, onChange) {
         try { await imgEl.decode(); } catch { /* sized below anyway */ }
         if (index !== items.indexOf(item)) return;
         fitZoom(fitMode);
-        imgEl.classList.remove('animating'); // no zoom animation on a new image
+      } else {
+        setZoom(1, 0, 0); // every image otherwise starts un-zoomed
       }
+      imgEl.classList.remove('animating'); // never animate the zoom of a newly shown image
+      imgEl.classList.remove('fitting');
       if (item.cover && !item.image) {
         // a web cover's own link, or the uploaded cover's local copy (that one only opens on phones)
         originalLink.href = url;
@@ -540,6 +544,7 @@ function openViewer(items, start, onChange) {
       }
       imgEl.classList.remove('switching');
     } else {
+      setZoom(1, 0, 0);
       imgEl.hidden = true;
       note.hidden = false;
     }
