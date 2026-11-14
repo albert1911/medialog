@@ -4,3 +4,4 @@
 - listed tags is only after sources, so only show tag that is on those sources
 - inconsistent ui when selecting all for sources and tags
 - when hide description also removes the background color, only have the background on the show description button
+- make the gallery swipe-able through description, right now when try to swap the image on top of the description, it doesn't work, I need swipe at the place where the description not blocking

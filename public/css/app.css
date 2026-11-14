@@ -787,6 +787,7 @@ legend { font-weight: 700; padding: 0 0.35rem; }
 }
 .selecting .gallery-tile:not([data-image]) { opacity: 0.55; cursor: default; } /* the cover can't be picked */
 .selecting .gallery-tile:hover img { transform: none; }
+.selecting .gallery-tile[data-image] { cursor: pointer; }
 .gallery-tile.selected { outline: 3px solid var(--accent); outline-offset: -3px; }
 .gallery-tile.selected::before {
   content: '✓';
