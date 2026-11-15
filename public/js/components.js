@@ -83,7 +83,8 @@ export function shapeCovers(root) {
 }
 
 export const progressText = (e) => `${e.progress} / ${e.chapter_count > 0 ? e.chapter_count : '?'}`;
-export const progressPct = (e) => (e.chapter_count > 0 ? Math.min(100, (e.progress / e.chapter_count) * 100) : 0);
+// Unknown total (x / ?): half full once started, empty at 0.
+export const progressPct = (e) => (e.chapter_count > 0 ? Math.min(100, (e.progress / e.chapter_count) * 100) : e.progress > 0 ? 50 : 0);
 export const canIncrement = (e) => e.chapter_count === 0 || e.progress < e.chapter_count;
 
 export function entryCard(e) {
