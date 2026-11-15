@@ -1,4 +1,12 @@
 - listed tags is only after sources, so only show tag that is on those sources
 - inconsistent ui when selecting all for sources and tags 
+- allow filtering multiple tags
+
+- when adding new entry from library, have the stuff prefilled based on the filters
 
 - recap & activity log feature
+- for monthly recap change it from bar to calendar thing like those thing on github
+- for yearly recap also change it from bar to calendar thing
+- for week and monthly recap have the "By day" and "Activity" section side by side on desktop
+
+- does deleting an entry with images saved on cloudinary also delete it on cloudinary?

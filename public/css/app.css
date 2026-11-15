@@ -1042,7 +1042,12 @@ legend { font-weight: 700; padding: 0 0.35rem; }
   color: var(--text); box-shadow: var(--shadow);
 }
 .home-act:hover { text-decoration: none; border-color: var(--accent); }
-.home-act-cover { width: 48px; flex: none; aspect-ratio: 2 / 3; border-radius: 6px; overflow: hidden; }
+/* Same height for every row; the width follows the cover: portrait / square keep their own
+   proportions, landscape covers get a 16:9 frame. */
+.home-act-cover { width: auto; height: 4.5rem; flex: none; aspect-ratio: var(--aspect, 2 / 3); border-radius: 6px; overflow: hidden; }
+.home-act-cover[data-shape="landscape"] { aspect-ratio: 16 / 9; }
+.home-act-cover[data-shape="landscape"] .cover-img { object-fit: cover; filter: none; }
+.home-act-cover[data-shape="landscape"] .cover-backdrop { display: none; }
 .home-act-body { display: flex; flex-direction: column; gap: 0.15rem; min-width: 0; flex: 1; }
 .home-act-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .home-act-what { font-size: 0.9rem; color: var(--muted); }
