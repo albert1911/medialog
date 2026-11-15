@@ -1031,7 +1031,8 @@ legend { font-weight: 700; padding: 0 0.35rem; }
 .cover-sm { width: 36px; flex: none; aspect-ratio: 2 / 3; border-radius: 4px; overflow: hidden; }
 
 /* ---------------------------------------------------------------- home */
-.home { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 1.5rem; align-items: start; }
+.home { display: grid; grid-template-columns: minmax(300px, 5fr) minmax(0, 7fr); gap: 1.5rem; align-items: start; }
+.home-col { min-width: 0; }
 .home-col h2 { margin: 0 0 0.75rem; font-size: 1.1rem; }
 .home-col .cards { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 0.85rem; }
 .act-icon .fa-icon { display: inline-block; vertical-align: -0.125em; }
@@ -1060,4 +1061,5 @@ legend { font-weight: 700; padding: 0 0.35rem; }
     padding-bottom: 0.5rem;
   }
   .home-col .card { scroll-snap-align: start; }
+  .home-col[aria-labelledby="home-current"] { order: -1; } /* in-progress first on phones */
 }
