@@ -1029,3 +1029,21 @@ legend { font-weight: 700; padding: 0 0.35rem; }
 .recap-completed a { display: flex; align-items: center; gap: 0.75rem; min-width: 0; }
 .recap-completed a span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cover-sm { width: 36px; flex: none; aspect-ratio: 2 / 3; border-radius: 4px; overflow: hidden; }
+
+/* ---------------------------------------------------------------- home */
+.home { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 1.5rem; align-items: start; }
+.home-col h2 { margin: 0 0 0.75rem; font-size: 1.1rem; }
+.home-col .cards { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
+.home-acts { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.5rem; }
+.home-act {
+  display: flex; align-items: center; gap: 0.75rem; padding: 0.5rem 0.75rem 0.5rem 0.5rem;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  color: var(--text); box-shadow: var(--shadow);
+}
+.home-act:hover { text-decoration: none; border-color: var(--accent); }
+.home-act-cover { width: 48px; flex: none; aspect-ratio: 2 / 3; border-radius: 6px; overflow: hidden; }
+.home-act-body { display: flex; flex-direction: column; gap: 0.15rem; min-width: 0; flex: 1; }
+.home-act-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.home-act-what { font-size: 0.9rem; color: var(--muted); }
+.home-act time { white-space: nowrap; align-self: flex-start; }
+@media (max-width: 900px) { .home { grid-template-columns: 1fr; } }

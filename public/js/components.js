@@ -218,7 +218,7 @@ export function renderNotFound(view, message = 'Page not found') {
   view.innerHTML = `<div class="empty-state">
     <h1>${esc(message)}</h1>
     <p class="muted">It may have been deleted.</p>
-    <a class="btn btn-primary" href="#/">Back to library</a>
+    <a class="btn btn-primary" href="#/library">Back to library</a>
   </div>`;
 }
 

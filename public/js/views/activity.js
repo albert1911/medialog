@@ -4,24 +4,24 @@ import { esc, fmtDate, statusLabel } from '../util.js';
 
 // ---------------------------------------------------------------- shared helpers
 
-const dayKey = (iso) => {
+export const dayKey = (iso) => {
   const d = new Date(iso);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
 const fmtDay = (iso) => new Date(iso).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
-const fmtTime = (iso) => new Date(iso).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+export const fmtTime = (iso) => new Date(iso).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
 
 // Rows from one save share a time; this keeps score above status above progress, as they read best.
 const RANK = { score: 3, status: 2, progress: 1 };
-const newestFirst = (a, b) => b.at.localeCompare(a.at) || RANK[b.type] - RANK[a.type];
+export const newestFirst = (a, b) => b.at.localeCompare(a.at) || RANK[b.type] - RANK[a.type];
 
 // Corrections (progress going down) are kept in the log but not shown.
-const visible = (row) => row.type !== 'progress' || row.to > row.from;
+export const visible = (row) => row.type !== 'progress' || row.to > row.from;
 
-const isStart = (row) => row.type === 'status' && row.to === 'current' && row.from === 'planning';
-const isCompletion = (row) => row.type === 'status' && row.to === 'completed';
+export const isStart = (row) => row.type === 'status' && row.to === 'current' && row.from === 'planning';
+export const isCompletion = (row) => row.type === 'status' && row.to === 'completed';
 
-function describe(row) {
+export function describe(row) {
   const auto = row.auto ? ' <span class="muted small">(auto)</span>' : '';
   if (row.type === 'progress') return { icon: '▶', html: `Progress ${row.from} → ${row.to} <span class="act-delta">+${row.to - row.from}</span>` };
   if (row.type === 'score') {

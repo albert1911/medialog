@@ -10,10 +10,12 @@ import { renderEntryDetail, renderEntryForm } from './views/entry.js';
 import { renderSourceDetail, renderSourceForm, renderSourcesList } from './views/sources.js';
 import { renderSettings } from './views/settings.js';
 import { renderRecap } from './views/activity.js';
+import { renderHome } from './views/home.js';
 
 // Hash routes: [pattern, render(view, id, query), nav section, page title]
 const routes = [
-  [/^\/$/, (v) => renderLibrary(v), 'library', 'Library'],
+  [/^\/$/, (v) => renderHome(v), 'home', 'Home'],
+  [/^\/library$/, (v) => renderLibrary(v), 'library', 'Library'],
   [/^\/entries\/new$/, (v, _id, q) => renderEntryForm(v, null, q), 'library', 'New entry'],
   [/^\/entries\/([\w-]+)$/, (v, id) => renderEntryDetail(v, id), 'library', 'Entry'],
   [/^\/entries\/([\w-]+)\/edit$/, (v, id, q) => renderEntryForm(v, id, q), 'library', 'Edit entry'],
@@ -92,7 +94,7 @@ async function router() {
     else renderNotFound(next);
   } catch (err) {
     console.error(err);
-    next.innerHTML = `<div class="empty-state"><h1>Something went wrong</h1><p class="muted">${esc(err.message)}</p><a class="btn" href="#/">Back to library</a></div>`;
+    next.innerHTML = `<div class="empty-state"><h1>Something went wrong</h1><p class="muted">${esc(err.message)}</p><a class="btn" href="#/library">Back to library</a></div>`;
   }
   if (seq !== renderSeq) return;
 

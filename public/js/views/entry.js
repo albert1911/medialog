@@ -34,7 +34,7 @@ export async function renderEntryDetail(view, id) {
   const coverEntry = { ...entry, cover_aspect: aspect };
 
   view.innerHTML = `
-    <div class="crumbs"><a href="#/">Library</a> <span>/</span> <span>${esc(entry.type)}</span></div>
+    <div class="crumbs"><a href="#/library">Library</a> <span>/</span> <span>${esc(entry.type)}</span></div>
     <div class="detail ${banner ? 'has-banner' : ''}">
       <aside class="detail-side">
         ${banner ? '' : coverHTML(coverEntry, 'cover-lg cover-natural')}
@@ -70,7 +70,7 @@ export async function renderEntryDetail(view, id) {
           <span class="chip">${esc(entry.type)}</span>
           <span class="badge status-${entry.status}" id="status-badge">${statusLabel(entry.status)}</span>
         </div>
-        ${tagsOf(entry).length ? `<div class="chips tags" aria-label="Tags">${tagsOf(entry).map((t) => `<a class="chip tag" href="#/" data-tag="${esc(t)}" title="Show entries tagged ${esc(t)}">${esc(t)}</a>`).join('')}</div>` : ''}
+        ${tagsOf(entry).length ? `<div class="chips tags" aria-label="Tags">${tagsOf(entry).map((t) => `<a class="chip tag" href="#/library" data-tag="${esc(t)}" title="Show entries tagged ${esc(t)}">${esc(t)}</a>`).join('')}</div>` : ''}
 
         <dl class="facts">
           <div><dt>Release date</dt><dd>${entry.release_date ? fmtDate(entry.release_date) : '—'}</dd></div>
@@ -180,7 +180,7 @@ export async function renderEntryDetail(view, id) {
     await Entries.remove(entry.id);
     document.dispatchEvent(new CustomEvent('medialog:forget', { detail: `/entries/${entry.id}` }));
     toast('Entry deleted');
-    location.hash = '#/';
+    location.hash = '#/library';
   });
 
   if (entry.content) {
@@ -224,7 +224,7 @@ export async function renderEntryForm(view, id, query) {
   let pendingFile = null; // the picked file itself, for the gallery's original copy
   let pendingUrl = null;
   let coverAspect = v.cover_aspect ?? null;
-  const cancelHref = editing ? `#/entries/${id}` : '#/';
+  const cancelHref = editing ? `#/entries/${id}` : '#/library';
 
   view.innerHTML = `
     <div class="page-head"><h1>${editing ? 'Edit entry' : 'New entry'}</h1></div>
