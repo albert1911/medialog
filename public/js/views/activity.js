@@ -1,5 +1,6 @@
 import { Activity, Entries } from '../db.js';
 import { coverHTML } from '../components.js';
+import { iconSVG } from '../icons.js';
 import { esc, fmtDate, statusLabel } from '../util.js';
 
 // ---------------------------------------------------------------- shared helpers
@@ -23,13 +24,13 @@ export const isCompletion = (row) => row.type === 'status' && row.to === 'comple
 
 export function describe(row) {
   const auto = row.auto ? ' <span class="muted small">(auto)</span>' : '';
-  if (row.type === 'progress') return { icon: '▶', html: `Progress ${row.from} → ${row.to} <span class="act-delta">+${row.to - row.from}</span>` };
+  if (row.type === 'progress') return { icon: iconSVG('play'), html: `Progress ${row.from} → ${row.to} <span class="act-delta">+${row.to - row.from}</span>` };
   if (row.type === 'score') {
-    return { icon: '★', html: row.to == null ? 'Score removed' : `Scored ${row.to}` };
+    return { icon: iconSVG('star'), html: row.to == null ? 'Score removed' : `Scored ${row.to}` };
   }
-  if (isCompletion(row)) return { icon: '✓', html: `Completed${auto}` };
-  if (isStart(row)) return { icon: '●', html: `Started${auto}` };
-  return { icon: '●', html: `Status ${esc(statusLabel(row.from))} → ${esc(statusLabel(row.to))}${auto}` };
+  if (isCompletion(row)) return { icon: iconSVG('done'), html: `Completed${auto}` };
+  if (isStart(row)) return { icon: iconSVG('flag'), html: `Started${auto}` };
+  return { icon: iconSVG('swap'), html: `Status ${esc(statusLabel(row.from))} → ${esc(statusLabel(row.to))}${auto}` };
 }
 
 function rowHTML(row, entry) {

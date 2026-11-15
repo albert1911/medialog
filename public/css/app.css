@@ -1033,7 +1033,8 @@ legend { font-weight: 700; padding: 0 0.35rem; }
 /* ---------------------------------------------------------------- home */
 .home { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 1.5rem; align-items: start; }
 .home-col h2 { margin: 0 0 0.75rem; font-size: 1.1rem; }
-.home-col .cards { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
+.home-col .cards { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 0.85rem; }
+.act-icon .fa-icon { display: inline-block; vertical-align: -0.125em; }
 .home-acts { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.5rem; }
 .home-act {
   display: flex; align-items: center; gap: 0.75rem; padding: 0.5rem 0.75rem 0.5rem 0.5rem;
@@ -1047,3 +1048,16 @@ legend { font-weight: 700; padding: 0 0.35rem; }
 .home-act-what { font-size: 0.9rem; color: var(--muted); }
 .home-act time { white-space: nowrap; align-self: flex-start; }
 @media (max-width: 900px) { .home { grid-template-columns: 1fr; } }
+/* Phone: in-progress cards sit in a horizontal scroller showing 1.5 cards at a time. */
+@media (max-width: 720px) {
+  .home-col .cards {
+    grid-template-columns: none;
+    grid-auto-flow: column;
+    grid-auto-columns: calc((100% - 0.85rem) / 1.5);
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x proximity;
+    padding-bottom: 0.5rem;
+  }
+  .home-col .card { scroll-snap-align: start; }
+}
