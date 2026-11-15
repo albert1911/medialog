@@ -429,6 +429,28 @@ export const Activity = {
       wrap(tx.objectStore(ACTIVITY).index('entry_id').getAll(String(entryId))).then((rows) => rows.filter(live)),
     );
   },
+
+  // Manual correction of one log row (from / to / at). The entry itself is not changed.
+  update(id, data) {
+    return withTx([ACTIVITY], 'readwrite', async (tx) => {
+      const store = tx.objectStore(ACTIVITY);
+      const row = live(await wrap(store.get(String(id))));
+      if (!row) throw new Error('Activity not found.');
+      const next = normalizeActivity({ ...row, ...data });
+      if (next.type === 'progress' && (next.from == null || next.to == null)) throw new Error('Enter a number.');
+      const updated = { ...row, ...next, updated_at: new Date().toISOString() };
+      store.put(updated);
+      return updated;
+    });
+  },
+
+  remove(id) {
+    return withTx([ACTIVITY], 'readwrite', async (tx) => {
+      const store = tx.objectStore(ACTIVITY);
+      const row = live(await wrap(store.get(String(id))));
+      if (row) store.put(tombstone(row, new Date().toISOString()));
+    });
+  },
 };
 
 // ---------------------------------------------------------------- entries

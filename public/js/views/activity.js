@@ -1,7 +1,7 @@
 import { Activity, Entries } from '../db.js';
 import { coverHTML } from '../components.js';
 import { iconSVG } from '../icons.js';
-import { esc, fmtDate, statusLabel } from '../util.js';
+import { STATUSES, esc, fmtDate, statusLabel, toast } from '../util.js';
 
 // ---------------------------------------------------------------- shared helpers
 
@@ -33,11 +33,36 @@ export function describe(row) {
   return { icon: iconSVG('swap'), html: `Status ${esc(statusLabel(row.from))} → ${esc(statusLabel(row.to))}${auto}` };
 }
 
-function rowHTML(row, entry) {
+function rowHTML(row, entry, editable = false) {
   const { icon, html } = describe(row);
   const title = entry ? `<a class="act-entry" href="#/entries/${esc(entry.id)}">${esc(entry.title)}</a>` : '';
-  return `<li class="act-row"><time class="act-time muted small" datetime="${esc(row.at)}">${fmtTime(row.at)}</time>
-    <span class="act-icon" aria-hidden="true">${icon}</span><span class="act-text">${title}${html}</span></li>`;
+  const tools = editable ? `<span class="act-tools">
+      <button type="button" class="act-btn" data-act="edit" aria-label="Edit">${iconSVG('pen')}</button>
+      <button type="button" class="act-btn" data-act="delete" aria-label="Delete">${iconSVG('trash')}</button></span>` : '';
+  return `<li class="act-row" data-id="${esc(row.id)}"><time class="act-time muted small" datetime="${esc(row.at)}">${fmtTime(row.at)}</time>
+    <span class="act-icon" aria-hidden="true">${icon}</span><span class="act-text">${title}${html}</span>${tools}</li>`;
+}
+
+// <input type="datetime-local"> wants local time without a zone.
+const toLocalInput = (iso) => {
+  const d = new Date(iso);
+  return `${dayKey(iso)}T${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+};
+
+function editHTML(row) {
+  const num = (name, v) => `<input type="number" name="${name}" value="${v ?? ''}" step="any" ${row.type === 'score' ? '' : 'required'} aria-label="${name}">`;
+  const opts = (v) => STATUSES.map((s) => `<option value="${s.value}" ${s.value === v ? 'selected' : ''}>${esc(s.label)}</option>`).join('');
+  const fields = row.type === 'status'
+    ? `<select name="from" aria-label="from">${opts(row.from)}</select> → <select name="to" aria-label="to">${opts(row.to)}</select>`
+    : `${num('from', row.from)} → ${num('to', row.to)}`;
+  return `<li class="act-row act-editing" data-id="${esc(row.id)}"><form class="act-form">
+    <span class="act-form-type muted small">${row.type}</span>
+    <span class="act-form-fields">${fields}</span>
+    <input type="datetime-local" name="at" value="${toLocalInput(row.at)}" required aria-label="Time">
+    <span class="act-form-actions">
+      <button type="submit" class="btn btn-small btn-primary">Save</button>
+      <button type="button" class="btn btn-small" data-act="cancel">Cancel</button>
+    </span></form></li>`;
 }
 
 // Rows grouped by day: [{ day, rows }], newest first.
@@ -51,10 +76,10 @@ function byDay(rows) {
   return days;
 }
 
-function feedHTML(rows, entryOf) {
+function feedHTML(rows, entryOf, editable = false) {
   return byDay(rows).map((d) => `
     <h3 class="act-day">${fmtDay(d.at)}</h3>
-    <ul class="act-list">${d.rows.map((r) => rowHTML(r, entryOf?.(r))).join('')}</ul>`).join('');
+    <ul class="act-list">${d.rows.map((r) => rowHTML(r, entryOf?.(r), editable)).join('')}</ul>`).join('');
 }
 
 // ---------------------------------------------------------------- entry page
@@ -66,7 +91,46 @@ export async function mountActivity(container, entry) {
     return;
   }
   container.hidden = false;
-  container.innerHTML = `<h2>Activity</h2>${feedHTML(rows)}`;
+  container.innerHTML = `<h2>Activity</h2><div class="act-feed">${feedHTML(rows, null, true)}</div>`;
+
+  // Edit / delete log rows. This corrects the log only; the entry's own progress, status and score stay as they are.
+  const byId = new Map(rows.map((r) => [r.id, r]));
+  container.onclick = async (event) => {
+    const button = event.target.closest('[data-act]');
+    const li = button?.closest('.act-row');
+    const row = li && byId.get(li.dataset.id);
+    if (!row) return;
+    try {
+      if (button.dataset.act === 'edit') {
+        li.replaceWith(Object.assign(document.createElement('div'), { innerHTML: editHTML(row) }).firstElementChild);
+      } else if (button.dataset.act === 'cancel') {
+        await mountActivity(container, entry);
+      } else if (button.dataset.act === 'delete') {
+        if (!confirm('Delete this activity entry? Your progress, status and score are not changed.')) return;
+        await Activity.remove(row.id);
+        await mountActivity(container, entry);
+        toast('Activity deleted');
+      }
+    } catch (err) {
+      toast(err.message, 'error');
+    }
+  };
+  container.onsubmit = async (event) => {
+    event.preventDefault();
+    const li = event.target.closest('.act-row');
+    const data = Object.fromEntries(new FormData(event.target));
+    try {
+      await Activity.update(li.dataset.id, {
+        from: data.from === '' ? null : data.from,
+        to: data.to === '' ? null : data.to,
+        at: new Date(data.at).toISOString(),
+      });
+      await mountActivity(container, entry);
+      toast('Activity updated', 'success');
+    } catch (err) {
+      toast(err.message, 'error');
+    }
+  };
 }
 
 // ---------------------------------------------------------------- recap

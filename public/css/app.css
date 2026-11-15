@@ -1062,3 +1062,17 @@ legend { font-weight: 700; padding: 0 0.35rem; }
   .home-col .card { scroll-snap-align: start; }
   .home-col[aria-labelledby="home-current"] { order: -1; } /* in-progress first on phones */
 }
+
+/* editable activity rows on the entry page */
+.act-text { flex: 1; min-width: 0; }
+.act-tools { display: flex; gap: 0.25rem; opacity: 0; transition: opacity 0.15s; }
+.act-row:hover .act-tools, .act-row:focus-within .act-tools { opacity: 1; }
+@media (hover: none) { .act-tools { opacity: 1; } }
+.act-btn { display: grid; place-items: center; width: 1.7rem; height: 1.7rem; padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--muted); font-size: 0.85rem; cursor: pointer; }
+.act-btn:hover { background: var(--surface-2); color: var(--accent); }
+.act-btn[data-act="delete"]:hover { color: var(--danger); }
+.act-editing { padding: 0.35rem 0; }
+.act-form { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; width: 100%; }
+.act-form-fields { display: flex; align-items: center; gap: 0.4rem; }
+.act-form-fields input { width: 5.5rem; }
+.act-form-actions { display: flex; gap: 0.4rem; margin-left: auto; }
