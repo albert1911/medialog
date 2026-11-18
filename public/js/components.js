@@ -40,7 +40,7 @@ async function loadCover(img) {
     url = URL.createObjectURL(record.blob);
     coverUrls.set(id, url);
   }
-  img.src = url;
+  if (img.getAttribute('src') !== url) img.src = url;
 }
 
 const coverObserver = new IntersectionObserver((items) => {
@@ -69,6 +69,7 @@ export function watchCovers(root) {
 export function applyCoverShape(img) {
   const cover = img.closest('.cover');
   if (!cover || !img.naturalWidth) return;
+  img.classList.add('is-loaded'); // fades the image in over the placeholder
   const aspect = img.naturalWidth / img.naturalHeight;
   const shape = coverShape(aspect);
   cover.dataset.shape = shape;
@@ -109,9 +110,52 @@ export function entryCard(e) {
 
 // Renders entry cards into `container` as a grid of same-shape (16:9) cards, or `emptyHTML`
 // if there are none.
+// Updates `container` to match `html` without touching children whose markup didn't change, so
+// their images aren't reloaded (no flicker on refresh). Children are matched by data-key / data-id.
+const keyOf = (el) => el.dataset.key ?? el.dataset.id;
+// Loaded nodes are modified by scripts (img src, cover shape), so compare the markup they were
+// created from, not their live outerHTML. The relative time label is ignored and updated in place.
+const sigOf = (el) => el.outerHTML.replace(/<time[\s\S]*?<\/time>/, '');
+const sigs = new WeakMap();
+// Identifies which image a cover shows (survives the src that scripts fill in after loading).
+const coverKey = (cover) => {
+  const img = cover.querySelector('.cover-img');
+  return `${cover.dataset.initial}|${img ? img.dataset.cover ?? img.getAttribute('src') : ''}`;
+};
+export function patchChildren(container, html) {
+  const next = document.createElement('div');
+  next.innerHTML = html;
+  const old = new Map([...container.children].map((el) => [keyOf(el), el]));
+  const unkeyed = [...next.children].some((el) => keyOf(el) === undefined);
+  if (unkeyed) { container.innerHTML = html; return; } // empty-state message etc.
+  const ref = (el) => old.get(keyOf(el));
+  let cursor = container.firstElementChild;
+  for (const el of [...next.children]) {
+    const prev = ref(el);
+    const same = prev && sigs.get(prev) === sigOf(el);
+    const node = same ? prev : el;
+    if (!same) {
+      sigs.set(el, sigOf(el));
+      // Only the text changed (e.g. +1 progress)? Keep the already loaded cover instead of the new one.
+      const oc = prev?.querySelector('.cover'), nc = el.querySelector('.cover');
+      if (oc && nc && coverKey(oc) === coverKey(nc)) nc.replaceWith(oc);
+    } else {
+      const t = prev.querySelector('time'), nt = el.querySelector('time');
+      if (t && nt && t.textContent !== nt.textContent) t.textContent = nt.textContent;
+    }
+    if (prev && node !== prev) {
+      if (cursor === prev) cursor = prev.nextElementSibling;
+      prev.remove();
+    }
+    if (node === cursor) cursor = cursor.nextElementSibling;
+    else container.insertBefore(node, cursor);
+  }
+  while (cursor) { const n = cursor.nextElementSibling; cursor.remove(); cursor = n; }
+}
+
 export function renderCards(container, entries, emptyHTML) {
   container.classList.add('cards');
-  container.innerHTML = entries.length ? entries.map(entryCard).join('') : emptyHTML;
+  patchChildren(container, entries.length ? entries.map(entryCard).join('') : emptyHTML);
 }
 
 // Handles the "+1" buttons on entry cards inside `container`.
