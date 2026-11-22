@@ -307,12 +307,12 @@ function yearCalendarHTML(start, end, totals, max) {
   return `
     <div class="cal-year-wrap">
       <div class="cal-year">
-        <div class="cal-year-header" style="grid-template-columns: repeat(${weeks.length}, 13px);">
+        <div class="cal-year-header" style="grid-template-columns: repeat(${weeks.length}, var(--year-cell, 13px));">
           ${monthsHTML}
         </div>
         <div class="cal-year-body">
           <div class="cal-year-weekdays">${weekdaysHTML}</div>
-          <div class="cal-year-grid" style="grid-template-columns: repeat(${weeks.length}, 13px);">
+          <div class="cal-year-grid" style="grid-template-columns: repeat(${weeks.length}, var(--year-cell, 13px));">
             ${cellsHTML}
           </div>
         </div>
@@ -402,7 +402,7 @@ export async function renderRecap(view) {
           <h2 class="recap-h">Activity</h2>
           ${feedHTML(rows, (row) => entryById.get(row.entry_id))}
         ` : `
-          <div class="recap-cols ${state.period === 'month' ? 'recap-cols-month' : ''}">
+          <div class="recap-cols">
             <section class="recap-col">
               <h2 class="recap-h">By day</h2>
               ${daysChartHTML(r, rows, state.period)}

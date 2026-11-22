@@ -1034,16 +1034,11 @@ legend { font-weight: 700; padding: 0 0.35rem; }
   gap: 1.75rem;
   align-items: start;
 }
-.recap-cols-month {
-  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
-  gap: 2rem;
-}
 .recap-col {
   min-width: 0;
 }
 @media (max-width: 800px) {
-  .recap-cols,
-  .recap-cols-month {
+  .recap-cols {
     grid-template-columns: 1fr;
     gap: 1rem;
   }
@@ -1187,6 +1182,8 @@ legend { font-weight: 700; padding: 0 0.35rem; }
 
 /* ---- Year Calendar (GitHub-style Heatmap) */
 .cal-year-wrap {
+  --year-cell: 13px;
+  --year-gap: 3px;
   overflow-x: auto;
   padding-bottom: 0.5rem;
 }
@@ -1198,7 +1195,7 @@ legend { font-weight: 700; padding: 0 0.35rem; }
 }
 .cal-year-header {
   display: grid;
-  gap: 3px;
+  gap: var(--year-gap, 3px);
   margin-left: 28px;
   font-size: 0.72rem;
   color: var(--muted);
@@ -1211,11 +1208,11 @@ legend { font-weight: 700; padding: 0 0.35rem; }
 }
 .cal-year-weekdays {
   display: grid;
-  grid-template-rows: repeat(7, 13px);
-  gap: 3px;
+  grid-template-rows: repeat(7, var(--year-cell, 13px));
+  gap: var(--year-gap, 3px);
   font-size: 0.65rem;
   color: var(--muted);
-  line-height: 13px;
+  line-height: var(--year-cell, 13px);
   width: 24px;
   text-align: right;
   padding-right: 2px;
@@ -1223,17 +1220,17 @@ legend { font-weight: 700; padding: 0 0.35rem; }
 .cal-year-grid {
   display: grid;
   grid-auto-flow: column;
-  grid-template-rows: repeat(7, 13px);
-  gap: 3px;
+  grid-template-rows: repeat(7, var(--year-cell, 13px));
+  gap: var(--year-gap, 3px);
 }
 .cal-day-year {
-  width: 13px;
-  height: 13px;
+  width: var(--year-cell, 13px);
+  height: var(--year-cell, 13px);
   border-radius: 2px;
   cursor: default;
 }
 .cal-day-year:hover {
-  transform: scale(1.3);
+  transform: scale(1.25);
 }
 
 /* ---- Calendar Legend */
@@ -1253,26 +1250,24 @@ legend { font-weight: 700; padding: 0 0.35rem; }
   display: inline-block;
 }
 
-/* Month calendar desktop sizing */
+/* Year calendar desktop sizing */
 @media (min-width: 801px) {
-  .cal-month {
-    gap: 0.5rem;
+  .cal-year-wrap {
+    --year-cell: 16px;
+    --year-gap: 4px;
   }
-  .cal-weekdays {
-    gap: 6px;
-    font-size: 0.85rem;
+  .cal-year-header {
+    font-size: 0.8rem;
+    height: 18px;
+    line-height: 18px;
+    margin-left: 32px;
   }
-  .cal-weekdays span {
-    padding: 4px 0;
+  .cal-year-weekdays {
+    font-size: 0.72rem;
+    width: 28px;
   }
-  .cal-month-grid {
-    gap: 6px;
-  }
-  .cal-day-month {
-    min-height: 52px;
-    font-size: 1.05rem;
-    font-weight: 700;
-    border-radius: 8px;
+  .cal-day-year {
+    border-radius: 3px;
   }
   .cal-legend {
     margin-top: 0.75rem;
