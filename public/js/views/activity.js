@@ -195,10 +195,11 @@ function weekBarChartHTML(start, end, totals) {
   return `
     <div class="recap-days-week" role="img" aria-label="Progress per day">
       ${days.map(({ d, value }) => {
-        const title = `${fmtDayLong(d)}: ${value} ${value === 1 ? 'chapter / episode' : 'chapters / episodes'}`;
+        const title = value ? `${value} ${value === 1 ? 'chapter / episode' : 'chapters / episodes'}` : 'No activity';
         const pct = value ? Math.max(6, (value / max) * 100) : 0;
+        const lvl = activityLevel(value, max);
         return `
-          <div class="recap-bar-col" title="${esc(title)}">
+          <div class="recap-bar-col" data-level="${lvl}" data-tooltip-date="${esc(fmtDayLong(d))}" data-tooltip-val="${esc(title)}">
             <div class="recap-bar-track">
               <span class="recap-bar-fill" style="height:${pct}%"></span>
             </div>
@@ -224,8 +225,8 @@ function monthCalendarHTML(start, end, totals, max) {
 
   const daysHTML = days.map((day) => {
     const lvl = activityLevel(day.value, max);
-    const title = `${fmtDayLong(day.d)}: ${day.value} ${day.value === 1 ? 'chapter / episode' : 'chapters / episodes'}`;
-    return `<div class="cal-day cal-day-month" data-level="${lvl}" title="${esc(title)}">
+    const title = day.value ? `${day.value} ${day.value === 1 ? 'chapter / episode' : 'chapters / episodes'}` : 'No activity';
+    return `<div class="cal-day cal-day-month" data-level="${lvl}" data-tooltip-date="${esc(fmtDayLong(day.d))}" data-tooltip-val="${esc(title)}">
       <span class="cal-day-num">${day.d.getDate()}</span>
     </div>`;
   }).join('');
@@ -239,11 +240,11 @@ function monthCalendarHTML(start, end, totals, max) {
       </div>
       <div class="cal-legend">
         <span class="muted small">Less</span>
-        <span class="cal-swatch" data-level="0" title="0 chapters"></span>
-        <span class="cal-swatch" data-level="1" title="Low"></span>
-        <span class="cal-swatch" data-level="2" title="Medium"></span>
-        <span class="cal-swatch" data-level="3" title="High"></span>
-        <span class="cal-swatch" data-level="4" title="Very high"></span>
+        <span class="cal-swatch" data-level="0" data-tooltip-text="No activity (0)"></span>
+        <span class="cal-swatch" data-level="1" data-tooltip-text="Low activity"></span>
+        <span class="cal-swatch" data-level="2" data-tooltip-text="Medium activity"></span>
+        <span class="cal-swatch" data-level="3" data-tooltip-text="High activity"></span>
+        <span class="cal-swatch" data-level="4" data-tooltip-text="Highest activity"></span>
         <span class="muted small">More</span>
       </div>
     </div>`;
@@ -298,8 +299,8 @@ function yearCalendarHTML(start, end, totals, max) {
     week.map((day) => {
       if (!day) return '<span class="cal-day-empty"></span>';
       const lvl = activityLevel(day.value, max);
-      const title = `${fmtDayLong(day.d)}: ${day.value} ${day.value === 1 ? 'chapter / episode' : 'chapters / episodes'}`;
-      return `<span class="cal-day cal-day-year" data-level="${lvl}" title="${esc(title)}"></span>`;
+      const title = day.value ? `${day.value} ${day.value === 1 ? 'chapter / episode' : 'chapters / episodes'}` : 'No activity';
+      return `<span class="cal-day cal-day-year" data-level="${lvl}" data-tooltip-date="${esc(fmtDayLong(day.d))}" data-tooltip-val="${esc(title)}"></span>`;
     })
   ).join('');
 
@@ -317,11 +318,11 @@ function yearCalendarHTML(start, end, totals, max) {
         </div>
         <div class="cal-legend">
           <span class="muted small">Less</span>
-          <span class="cal-swatch" data-level="0" title="0 chapters"></span>
-          <span class="cal-swatch" data-level="1" title="Low"></span>
-          <span class="cal-swatch" data-level="2" title="Medium"></span>
-          <span class="cal-swatch" data-level="3" title="High"></span>
-          <span class="cal-swatch" data-level="4" title="Very high"></span>
+          <span class="cal-swatch" data-level="0" data-tooltip-text="No activity (0)"></span>
+          <span class="cal-swatch" data-level="1" data-tooltip-text="Low activity"></span>
+          <span class="cal-swatch" data-level="2" data-tooltip-text="Medium activity"></span>
+          <span class="cal-swatch" data-level="3" data-tooltip-text="High activity"></span>
+          <span class="cal-swatch" data-level="4" data-tooltip-text="Highest activity"></span>
           <span class="muted small">More</span>
         </div>
       </div>
@@ -381,7 +382,7 @@ export async function renderRecap(view) {
 
       ${rows.length ? `
         <div class="recap-stats">
-          <div class="panel"><strong>${chapters}</strong><span class="muted small">chapters / episodes</span></div>
+          <div class="panel"><strong>${chapters}</strong><span class="muted small">chapters</span></div>
           <div class="panel"><strong>${completed.length}</strong><span class="muted small">completed</span></div>
           <div class="panel"><strong>${started}</strong><span class="muted small">started</span></div>
         </div>
@@ -401,7 +402,7 @@ export async function renderRecap(view) {
           <h2 class="recap-h">Activity</h2>
           ${feedHTML(rows, (row) => entryById.get(row.entry_id))}
         ` : `
-          <div class="recap-cols">
+          <div class="recap-cols ${state.period === 'month' ? 'recap-cols-month' : ''}">
             <section class="recap-col">
               <h2 class="recap-h">By day</h2>
               ${daysChartHTML(r, rows, state.period)}
@@ -415,6 +416,95 @@ export async function renderRecap(view) {
       ` : '<div class="empty-state"><p class="muted">No activity in this period.</p></div>'}`;
   }
 
+  let tooltip = document.getElementById('recap-tooltip');
+  if (!tooltip) {
+    tooltip = document.createElement('div');
+    tooltip.id = 'recap-tooltip';
+    tooltip.className = 'recap-tooltip';
+    document.body.appendChild(tooltip);
+  }
+
+  function showTooltip(el) {
+    const date = el.dataset.tooltipDate;
+    const val = el.dataset.tooltipVal;
+    const lvl = el.dataset.level ?? '';
+    const text = el.dataset.tooltipText;
+
+    if (!date && !text) return;
+
+    if (text) {
+      tooltip.innerHTML = `
+        <div class="recap-tooltip-inner">
+          <div class="recap-tooltip-row">
+            ${lvl !== '' ? `<span class="cal-swatch" data-level="${esc(lvl)}"></span>` : ''}
+            <span>${esc(text)}</span>
+          </div>
+        </div>`;
+    } else {
+      const isZero = lvl === '0' || val === 'No activity';
+      tooltip.innerHTML = `
+        <div class="recap-tooltip-inner">
+          <div class="recap-tooltip-date">${esc(date)}</div>
+          <div class="recap-tooltip-row">
+            ${lvl !== '' ? `<span class="cal-swatch" data-level="${esc(lvl)}"></span>` : ''}
+            <span class="recap-tooltip-val ${isZero ? 'is-empty' : ''}">${esc(val)}</span>
+          </div>
+        </div>`;
+    }
+
+    tooltip.classList.add('is-visible');
+    positionTooltip(el);
+  }
+
+  function hideTooltip() {
+    tooltip?.classList.remove('is-visible');
+  }
+
+  function positionTooltip(el) {
+    const rect = el.getBoundingClientRect();
+    const tipRect = tooltip.getBoundingClientRect();
+
+    const targetX = rect.left + rect.width / 2;
+    let top = rect.top - tipRect.height - 8;
+    let placement = 'top';
+
+    if (top < 10) {
+      top = rect.bottom + 8;
+      placement = 'bottom';
+    }
+
+    const margin = 12;
+    const left = Math.max(tipRect.width / 2 + margin, Math.min(window.innerWidth - tipRect.width / 2 - margin, targetX));
+    const arrowX = Math.max(12, Math.min(tipRect.width - 12, targetX - (left - tipRect.width / 2)));
+
+    tooltip.style.left = `${left}px`;
+    tooltip.style.top = `${top}px`;
+    tooltip.style.setProperty('--arrow-x', `${arrowX}px`);
+    tooltip.dataset.placement = placement;
+  }
+
+  view.addEventListener('pointerover', (e) => {
+    const target = e.target.closest('[data-tooltip-date], [data-tooltip-text]');
+    if (!target || !view.contains(target)) return;
+    showTooltip(target);
+  });
+
+  view.addEventListener('pointerout', (e) => {
+    const target = e.target.closest('[data-tooltip-date], [data-tooltip-text]');
+    if (!target) return;
+    const related = e.relatedTarget?.closest?.('[data-tooltip-date], [data-tooltip-text]');
+    if (related && view.contains(related)) {
+      showTooltip(related);
+    } else {
+      hideTooltip();
+    }
+  });
+
+  view.addEventListener('scroll', hideTooltip, { passive: true });
+  window.addEventListener('resize', hideTooltip, { passive: true });
+  window.addEventListener('hashchange', hideTooltip, { passive: true });
+  view.addEventListener('pointerdown', hideTooltip);
+
   view.addEventListener('click', (event) => {
     const button = event.target.closest('button');
     if (!button) return;
@@ -424,6 +514,7 @@ export async function renderRecap(view) {
     } else if (button.dataset.shift) {
       state.offset = Math.min(0, state.offset + Number(button.dataset.shift));
     } else return;
+    hideTooltip();
     draw();
   });
 
