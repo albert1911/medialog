@@ -172,16 +172,175 @@ function barsHTML(items, max) {
     </div>`).join('');
 }
 
-function daysChartHTML({ start, end }, rows) {
+const localDayKey = (d) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+const fmtDayLong = (d) =>
+  d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+
+function activityLevel(value, max) {
+  if (!value || value <= 0) return 0;
+  if (max <= 4) return Math.min(4, Math.max(1, value));
+  return Math.min(4, Math.max(1, Math.ceil((value / max) * 4)));
+}
+
+function weekBarChartHTML(start, end, totals) {
+  const days = [];
+  for (let d = new Date(start); d < end; d = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1)) {
+    const k = localDayKey(d);
+    days.push({ d: new Date(d), key: k, value: totals.get(k) ?? 0 });
+  }
+  const max = Math.max(1, ...days.map((x) => x.value));
+
+  return `
+    <div class="recap-days-week" role="img" aria-label="Progress per day">
+      ${days.map(({ d, value }) => {
+        const title = `${fmtDayLong(d)}: ${value} ${value === 1 ? 'chapter / episode' : 'chapters / episodes'}`;
+        const pct = value ? Math.max(6, (value / max) * 100) : 0;
+        return `
+          <div class="recap-bar-col" title="${esc(title)}">
+            <div class="recap-bar-track">
+              <span class="recap-bar-fill" style="height:${pct}%"></span>
+            </div>
+            <span class="recap-bar-day">${esc(d.toLocaleDateString(undefined, { weekday: 'short' }))}</span>
+            <span class="recap-bar-date">${d.getDate()}</span>
+          </div>`;
+      }).join('')}
+    </div>`;
+}
+
+function monthCalendarHTML(start, end, totals, max) {
+  const days = [];
+  for (let d = new Date(start); d < end; d = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1)) {
+    const k = localDayKey(d);
+    days.push({ d: new Date(d), key: k, value: totals.get(k) ?? 0 });
+  }
+
+  const firstWeekday = (days[0].d.getDay() + 6) % 7;
+  const blankCells = Array.from({ length: firstWeekday }, () => '<span class="cal-day-empty"></span>').join('');
+
+  const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const weekdaysHTML = weekdays.map((w) => `<span>${esc(w)}</span>`).join('');
+
+  const daysHTML = days.map((day) => {
+    const lvl = activityLevel(day.value, max);
+    const title = `${fmtDayLong(day.d)}: ${day.value} ${day.value === 1 ? 'chapter / episode' : 'chapters / episodes'}`;
+    return `<div class="cal-day cal-day-month" data-level="${lvl}" title="${esc(title)}">
+      <span class="cal-day-num">${day.d.getDate()}</span>
+    </div>`;
+  }).join('');
+
+  return `
+    <div class="cal-month">
+      <div class="cal-weekdays">${weekdaysHTML}</div>
+      <div class="cal-month-grid">
+        ${blankCells}
+        ${daysHTML}
+      </div>
+      <div class="cal-legend">
+        <span class="muted small">Less</span>
+        <span class="cal-swatch" data-level="0" title="0 chapters"></span>
+        <span class="cal-swatch" data-level="1" title="Low"></span>
+        <span class="cal-swatch" data-level="2" title="Medium"></span>
+        <span class="cal-swatch" data-level="3" title="High"></span>
+        <span class="cal-swatch" data-level="4" title="Very high"></span>
+        <span class="muted small">More</span>
+      </div>
+    </div>`;
+}
+
+function yearCalendarHTML(start, end, totals, max) {
+  const days = [];
+  for (let d = new Date(start); d < end; d = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1)) {
+    const k = localDayKey(d);
+    days.push({ d: new Date(d), key: k, value: totals.get(k) ?? 0 });
+  }
+
+  const firstWeekday = (days[0].d.getDay() + 6) % 7;
+  const weeks = [];
+  let currentWeek = [];
+  for (let i = 0; i < firstWeekday; i++) {
+    currentWeek.push(null);
+  }
+  for (const day of days) {
+    currentWeek.push(day);
+    if (currentWeek.length === 7) {
+      weeks.push(currentWeek);
+      currentWeek = [];
+    }
+  }
+  if (currentWeek.length > 0) {
+    while (currentWeek.length < 7) currentWeek.push(null);
+    weeks.push(currentWeek);
+  }
+
+  const monthLabels = [];
+  let lastMonth = -1;
+  weeks.forEach((week, weekIdx) => {
+    const firstDay = week.find((day) => day !== null);
+    if (firstDay && firstDay.d.getMonth() !== lastMonth) {
+      lastMonth = firstDay.d.getMonth();
+      monthLabels.push({
+        col: weekIdx + 1,
+        label: firstDay.d.toLocaleDateString(undefined, { month: 'short' }),
+      });
+    }
+  });
+
+  const monthsHTML = monthLabels.map(({ col, label }) =>
+    `<span style="grid-column: ${col};">${esc(label)}</span>`
+  ).join('');
+
+  const weekdayNames = ['Mon', '', 'Wed', '', 'Fri', '', ''];
+  const weekdaysHTML = weekdayNames.map((name) => `<span>${esc(name)}</span>`).join('');
+
+  const cellsHTML = weeks.flatMap((week) =>
+    week.map((day) => {
+      if (!day) return '<span class="cal-day-empty"></span>';
+      const lvl = activityLevel(day.value, max);
+      const title = `${fmtDayLong(day.d)}: ${day.value} ${day.value === 1 ? 'chapter / episode' : 'chapters / episodes'}`;
+      return `<span class="cal-day cal-day-year" data-level="${lvl}" title="${esc(title)}"></span>`;
+    })
+  ).join('');
+
+  return `
+    <div class="cal-year-wrap">
+      <div class="cal-year">
+        <div class="cal-year-header" style="grid-template-columns: repeat(${weeks.length}, 13px);">
+          ${monthsHTML}
+        </div>
+        <div class="cal-year-body">
+          <div class="cal-year-weekdays">${weekdaysHTML}</div>
+          <div class="cal-year-grid" style="grid-template-columns: repeat(${weeks.length}, 13px);">
+            ${cellsHTML}
+          </div>
+        </div>
+        <div class="cal-legend">
+          <span class="muted small">Less</span>
+          <span class="cal-swatch" data-level="0" title="0 chapters"></span>
+          <span class="cal-swatch" data-level="1" title="Low"></span>
+          <span class="cal-swatch" data-level="2" title="Medium"></span>
+          <span class="cal-swatch" data-level="3" title="High"></span>
+          <span class="cal-swatch" data-level="4" title="Very high"></span>
+          <span class="muted small">More</span>
+        </div>
+      </div>
+    </div>`;
+}
+
+function daysChartHTML({ start, end }, rows, period) {
   const totals = new Map();
   for (const r of rows) if (r.type === 'progress') totals.set(dayKey(r.at), (totals.get(dayKey(r.at)) ?? 0) + (r.to - r.from));
   const days = [];
   for (let d = new Date(start); d < end; d = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1)) {
-    days.push({ d, value: totals.get(dayKey(d.toISOString())) ?? 0 });
+    const k = localDayKey(d);
+    days.push({ d, value: totals.get(k) ?? 0 });
   }
   const max = Math.max(1, ...days.map((x) => x.value));
-  return `<div class="recap-days" role="img" aria-label="Progress per day">${days.map(({ d, value }) =>
-    `<span class="recap-day" style="height:${value ? Math.max(6, (value / max) * 100) : 2}%" title="${esc(d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }))}: ${value}"></span>`).join('')}</div>`;
+
+  if (period === 'week') return weekBarChartHTML(start, end, totals);
+  if (period === 'month') return monthCalendarHTML(start, end, totals, max);
+  return yearCalendarHTML(start, end, totals, max);
 }
 
 export async function renderRecap(view) {
@@ -214,9 +373,9 @@ export async function renderRecap(view) {
             `<button type="button" class="btn btn-small ${value === state.period ? 'btn-primary' : ''}" data-period="${value}">${label}</button>`).join('')}
         </div>
         <div class="recap-nav">
-          <button type="button" class="btn btn-icon" data-shift="-1" aria-label="Previous">‹</button>
+          <button type="button" class="btn btn-icon" data-shift="-1" aria-label="Previous">${iconSVG('chevronLeft')}</button>
           <strong class="recap-label">${esc(rangeLabel(state.period, r))}</strong>
-          <button type="button" class="btn btn-icon" data-shift="1" aria-label="Next" ${state.offset >= 0 ? 'disabled' : ''}>›</button>
+          <button type="button" class="btn btn-icon" data-shift="1" aria-label="Next" ${state.offset >= 0 ? 'disabled' : ''}>${iconSVG('chevronRight')}</button>
         </div>
       </div>
 
@@ -236,11 +395,24 @@ export async function renderRecap(view) {
 
         ${top.length ? `<h2 class="recap-h">Most active</h2>${barsHTML(top, top[0].value)}` : ''}
 
-        ${progressRows.length ? `<h2 class="recap-h">By day</h2>${daysChartHTML(r, rows)}` : ''}
-
-        <h2 class="recap-h">Activity</h2>
-        ${feedHTML(rows, (row) => entryById.get(row.entry_id))}`
-      : '<div class="empty-state"><p class="muted">No activity in this period.</p></div>'}`;
+        ${state.period === 'year' ? `
+          <h2 class="recap-h">By day</h2>
+          ${daysChartHTML(r, rows, 'year')}
+          <h2 class="recap-h">Activity</h2>
+          ${feedHTML(rows, (row) => entryById.get(row.entry_id))}
+        ` : `
+          <div class="recap-cols">
+            <section class="recap-col">
+              <h2 class="recap-h">By day</h2>
+              ${daysChartHTML(r, rows, state.period)}
+            </section>
+            <section class="recap-col">
+              <h2 class="recap-h">Activity</h2>
+              ${feedHTML(rows, (row) => entryById.get(row.entry_id))}
+            </section>
+          </div>
+        `}
+      ` : '<div class="empty-state"><p class="muted">No activity in this period.</p></div>'}`;
   }
 
   view.addEventListener('click', (event) => {

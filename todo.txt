@@ -5,8 +5,8 @@
 - when adding new entry from library, have the stuff prefilled based on the filters
 
 - recap & activity log feature
-- for monthly recap change it from bar to calendar thing like those thing on github
-- for yearly recap also change it from bar to calendar thing
-- for week and monthly recap have the "By day" and "Activity" section side by side on desktop
+- [x] for monthly recap change it from bar to calendar thing like those thing on github
+- [x] for yearly recap also change it from bar to calendar thing
+- [x] for week and monthly recap have the "By day" and "Activity" section side by side on desktop
 
 - does deleting an entry with images saved on cloudinary also delete it on cloudinary?
